@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  aggregateEntries,
   elapsedSeconds,
   elapsedSecondsForDate,
   formatDuration,
@@ -53,6 +54,36 @@ describe("time domain", () => {
     ];
     expect(goalForDate(goals, "2026-09-09")).toBe(28_800);
     expect(goalForDate(goals, "2026-09-11")).toBe(14_400);
+  });
+
+  it("adds overlapping entries independently", () => {
+    const entries = [
+      {
+        id: "1",
+        userId: "user",
+        taskId: "a",
+        localDate: "2026-09-11",
+        durationSeconds: 3600,
+        source: "timer" as const,
+        startedAt: null,
+        endedAt: null,
+        manuallyAdjusted: false,
+        mutationId: "m1",
+      },
+      {
+        id: "2",
+        userId: "user",
+        taskId: "b",
+        localDate: "2026-09-11",
+        durationSeconds: 1800,
+        source: "timer" as const,
+        startedAt: null,
+        endedAt: null,
+        manuallyAdjusted: false,
+        mutationId: "m2",
+      },
+    ];
+    expect(aggregateEntries(entries).get("2026-09-11")).toBe(5400);
   });
 
   it("formats compact and clock durations", () => {
