@@ -1,0 +1,1 @@
+-- Intentionally empty. Product data is created by onboarding, and credentials never belong in seeds.
