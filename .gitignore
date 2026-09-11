@@ -11,6 +11,7 @@ coverage/
 playwright-report/
 test-results/
 *.tsbuildinfo
+/graphify-out/
 
 # Local environment and hosting state
 .env
