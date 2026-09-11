@@ -87,7 +87,11 @@ export function SortableTaskCard({
           </div>
           <div
             className="task-progress"
-            aria-label={`${Math.round(percent)}% of task target`}
+            role="progressbar"
+            aria-label={`${task.name} progress`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(percent)}
           >
             <span style={{ width: `${percent}%` }} />
           </div>

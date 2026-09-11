@@ -2,6 +2,7 @@ import { AuthForm } from "@/components/auth/auth-form";
 import {
   isEmailAuthEnabled,
   isSupabaseConfigured,
+  turnstileSiteKey,
 } from "@/lib/supabase/config";
 
 export default function LoginPage() {
@@ -9,6 +10,7 @@ export default function LoginPage() {
     <AuthForm
       configured={isSupabaseConfigured()}
       emailEnabled={isEmailAuthEnabled}
+      turnstileSiteKey={turnstileSiteKey}
     />
   );
 }

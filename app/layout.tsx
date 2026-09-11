@@ -8,11 +8,14 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "TimeEight",
+  title: { default: "TimeEight", template: "%s · TimeEight" },
   description:
     "A calm timer for intentionally spending or limiting time across your day.",
   applicationName: "TimeEight",
   icons: { icon: "/favicon.svg" },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "TimeEight", statusBarStyle: "default" },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {

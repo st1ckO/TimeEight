@@ -22,3 +22,6 @@ export function getSupabaseConfig(): { url: string; publishableKey: string } {
 
 export const isEmailAuthEnabled =
   process.env.NEXT_PUBLIC_ENABLE_EMAIL_AUTH === "true";
+
+export const turnstileSiteKey =
+  process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";

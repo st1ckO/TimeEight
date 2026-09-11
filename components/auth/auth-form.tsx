@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Turnstile } from "@marsidev/react-turnstile";
 import { ArrowRight, Clock3 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
@@ -8,11 +9,17 @@ import { createClient } from "@/lib/supabase/browser";
 interface AuthFormProps {
   configured: boolean;
   emailEnabled: boolean;
+  turnstileSiteKey?: string;
 }
 
-export function AuthForm({ configured, emailEnabled }: AuthFormProps) {
+export function AuthForm({
+  configured,
+  emailEnabled,
+  turnstileSiteKey = "",
+}: AuthFormProps) {
   const router = useRouter();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "reset">("signin");
+  const [captchaToken, setCaptchaToken] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -43,6 +50,21 @@ export function AuthForm({ configured, emailEnabled }: AuthFormProps) {
     const email = String(form.get("email") ?? "").trim();
     const password = String(form.get("password") ?? "");
     const supabase = createClient();
+    if (!captchaToken) {
+      setPending(false);
+      return setMessage("Complete the security check first.");
+    }
+    if (mode === "reset") {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+        captchaToken,
+      });
+      setMessage(
+        error ? error.message : "Check your email for a secure reset link.",
+      );
+      setPending(false);
+      return;
+    }
     const result =
       mode === "signup"
         ? await supabase.auth.signUp({
@@ -50,9 +72,14 @@ export function AuthForm({ configured, emailEnabled }: AuthFormProps) {
             password,
             options: {
               emailRedirectTo: `${window.location.origin}/auth/callback`,
+              captchaToken,
             },
           })
-        : await supabase.auth.signInWithPassword({ email, password });
+        : await supabase.auth.signInWithPassword({
+            email,
+            password,
+            options: { captchaToken },
+          });
 
     if (result.error) setMessage(result.error.message);
     else if (mode === "signup")
@@ -88,9 +115,11 @@ export function AuthForm({ configured, emailEnabled }: AuthFormProps) {
         <div className="auth-card">
           <p className="eyebrow">Welcome</p>
           <h2>
-            {mode === "signin"
-              ? "Continue to your timers"
-              : "Create your TimeEight account"}
+            {mode === "reset"
+              ? "Reset your password"
+              : mode === "signin"
+                ? "Continue to your timers"
+                : "Create your TimeEight account"}
           </h2>
           <button
             className="google-button"
@@ -116,34 +145,66 @@ export function AuthForm({ configured, emailEnabled }: AuthFormProps) {
                     required
                   />
                 </label>
-                <label>
-                  Password
-                  <input
-                    type="password"
-                    name="password"
-                    autoComplete={
-                      mode === "signin" ? "current-password" : "new-password"
-                    }
-                    minLength={12}
-                    required
+                {mode !== "reset" && (
+                  <label>
+                    Password
+                    <input
+                      type="password"
+                      name="password"
+                      autoComplete={
+                        mode === "signin" ? "current-password" : "new-password"
+                      }
+                      minLength={12}
+                      required
+                    />
+                  </label>
+                )}
+                {turnstileSiteKey ? (
+                  <Turnstile
+                    siteKey={turnstileSiteKey}
+                    onSuccess={setCaptchaToken}
+                    onExpire={() => setCaptchaToken("")}
+                    options={{ theme: "auto" }}
                   />
-                </label>
+                ) : (
+                  <p className="form-message" role="status">
+                    Turnstile must be configured before email authentication can
+                    be used publicly.
+                  </p>
+                )}
                 <button
                   className="primary-button auth-submit"
-                  disabled={pending}
+                  disabled={pending || !turnstileSiteKey}
                 >
-                  {mode === "signin" ? "Sign in" : "Create account"}
+                  {mode === "reset"
+                    ? "Send reset link"
+                    : mode === "signin"
+                      ? "Sign in"
+                      : "Create account"}
                 </button>
               </form>
-              <button
-                className="text-button"
-                type="button"
-                onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-              >
-                {mode === "signin"
-                  ? "New here? Create an account"
-                  : "Already have an account? Sign in"}
-              </button>
+              <div className="auth-links">
+                <button
+                  className="text-button"
+                  type="button"
+                  onClick={() =>
+                    setMode(mode === "signin" ? "signup" : "signin")
+                  }
+                >
+                  {mode === "signin"
+                    ? "New here? Create an account"
+                    : "Return to sign in"}
+                </button>
+                {mode === "signin" && (
+                  <button
+                    className="text-button"
+                    type="button"
+                    onClick={() => setMode("reset")}
+                  >
+                    Forgot password?
+                  </button>
+                )}
+              </div>
             </>
           )}
           {!emailEnabled && (

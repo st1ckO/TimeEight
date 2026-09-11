@@ -1,9 +1,10 @@
 "use client";
 
-import { BarChart3, CalendarDays, Home, Settings } from "lucide-react";
+import { BarChart3, CalendarDays, Home, Settings, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTimeEight } from "./app-provider";
+import { WebMcpTools } from "./webmcp-tools";
 
 const destinations = [
   { href: "/today", label: "Today", icon: Home },
@@ -14,7 +15,8 @@ const destinations = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { activeTimers, pauseAll, profile, syncState } = useTimeEight();
+  const { activeTimers, pauseAll, profile, syncState, notice, dismissNotice } =
+    useTimeEight();
   const initials =
     profile.displayName
       .split(/\s+/)
@@ -25,6 +27,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app-frame">
+      <WebMcpTools />
       <aside className="sidebar">
         <Link className="brand" href="/today" aria-label="TimeEight home">
           <span>8</span>
@@ -53,6 +56,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <span className={`sync-dot ${syncState}`} />
           {syncState === "local" ? "Local demo" : syncState}
         </div>
+        {notice && (
+          <div className="reconciliation-notice" role="status">
+            <span>{notice}</span>
+            <button
+              className="icon-button"
+              onClick={dismissNotice}
+              aria-label="Dismiss notice"
+            >
+              <X size={17} />
+            </button>
+          </div>
+        )}
         {children}
       </main>
 

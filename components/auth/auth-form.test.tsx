@@ -9,7 +9,7 @@ vi.mock("next/navigation", () => ({
 
 describe("AuthForm", () => {
   it("keeps production email auth hidden until SMTP is enabled", () => {
-    render(<AuthForm configured emailEnabled={false} />);
+    render(<AuthForm configured emailEnabled={false} turnstileSiteKey="" />);
     expect(
       screen.getByRole("button", { name: /continue with google/i }),
     ).toBeInTheDocument();
@@ -18,7 +18,9 @@ describe("AuthForm", () => {
   });
 
   it("explains how to enable sign-in when the backend is not configured", async () => {
-    render(<AuthForm configured={false} emailEnabled={false} />);
+    render(
+      <AuthForm configured={false} emailEnabled={false} turnstileSiteKey="" />,
+    );
     await userEvent.click(
       screen.getByRole("button", { name: /continue with google/i }),
     );

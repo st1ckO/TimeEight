@@ -344,8 +344,7 @@ export function AppProvider({
       if (storedTasks.length > 0) await db.tasks.bulkPut(storedTasks);
       if (remoteAfter?.activeTimers.length)
         await db.activeTimers.bulkPut(remoteAfter.activeTimers);
-      if (storedEntries.length > 0)
-        await db.timeEntries.bulkPut(storedEntries);
+      if (storedEntries.length > 0) await db.timeEntries.bulkPut(storedEntries);
       if (cancelled) return;
       setProfile(storedProfile);
       setDailyGoals(storedGoals);
