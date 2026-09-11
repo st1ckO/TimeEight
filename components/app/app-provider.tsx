@@ -32,7 +32,11 @@ import {
   type PendingMutation,
 } from "@/lib/offline/db";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { syncPendingMutations } from "@/lib/offline/sync";
+import {
+  checkpointRemoteTimer,
+  loadRemoteSnapshot,
+  syncPendingMutations,
+} from "@/lib/offline/sync";
 
 const palette = ["#197c67", "#5577dc", "#d58c33", "#a45cc4", "#d86464"];
 
@@ -66,6 +70,7 @@ interface AppContextValue {
   now: number;
   hydrated: boolean;
   syncState: "local" | "synced" | "pending" | "offline" | "error";
+  notice: string | null;
   today: string;
   totals: Map<string, number>;
   streak: ReturnType<typeof calculateStreak>;
@@ -87,6 +92,7 @@ interface AppContextValue {
   }): Promise<void>;
   updateDailyGoal(goalSeconds: number): Promise<void>;
   clearUserData(): Promise<void>;
+  dismissNotice(): void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -166,6 +172,7 @@ export function AppProvider({
   const [syncState, setSyncState] = useState<AppContextValue["syncState"]>(
     userId === "local-demo" ? "local" : "pending",
   );
+  const [notice, setNotice] = useState<string | null>(null);
   const activeRef = useRef(activeTimers);
 
   useEffect(() => {
@@ -194,44 +201,36 @@ export function AppProvider({
     async function hydrate() {
       const db = getLocalDatabase();
       if (!db) return setHydrated(true);
-      let storedProfile = await db.profiles.get(userId);
-      if (!storedProfile) {
-        storedProfile = {
-          ...initialProfile,
-          accountStart: initialAccountStart,
-        };
-        await db.profiles.put(storedProfile);
-      }
+      let storedProfile = (await db.profiles.get(userId)) ?? {
+        ...initialProfile,
+        accountStart: initialAccountStart,
+      };
       let storedGoals = await db.dailyGoals
         .where("userId")
         .equals(userId)
         .toArray();
-      if (storedGoals.length === 0) {
-        storedGoals = [
-          {
-            id: newId(),
-            userId,
-            effectiveDate: todayKey(storedProfile.timezone),
-            goalSeconds: 28_800,
-          },
-        ];
-        await db.dailyGoals.bulkPut(storedGoals);
-      }
       let storedTasks = await db.tasks.where("userId").equals(userId).toArray();
-      if (storedTasks.length === 0) {
-        storedTasks = seedTasks(userId);
-        await db.tasks.bulkPut(storedTasks);
-        for (const task of storedTasks)
-          await queue(
-            userId,
-            "task-upsert",
-            task as unknown as Record<string, unknown>,
-          );
+      const storedTimers = await db.activeTimers
+        .where("userId")
+        .equals(userId)
+        .toArray();
+      let storedEntries = await db.timeEntries
+        .where("userId")
+        .equals(userId)
+        .toArray();
+      const onlineAccount =
+        isSupabaseConfigured() && userId !== "local-demo" && navigator.onLine;
+      let remoteBefore: Awaited<ReturnType<typeof loadRemoteSnapshot>> | null =
+        null;
+
+      if (onlineAccount) {
+        try {
+          remoteBefore = await loadRemoteSnapshot(userId);
+        } catch {
+          setSyncState("error");
+        }
       }
-      const [storedTimers, storedEntries] = await Promise.all([
-        db.activeTimers.where("userId").equals(userId).toArray(),
-        db.timeEntries.where("userId").equals(userId).toArray(),
-      ]);
+
       const recoveredEntries: TimeEntry[] = storedTimers.flatMap((timer) => {
         if (timer.checkpointSeconds <= 0) return [];
         const recoveredEnd = new Date(
@@ -254,38 +253,106 @@ export function AppProvider({
           mutationId: newId(),
         }));
       });
-      if (storedTimers.length > 0) {
-        await db.transaction(
-          "rw",
-          [db.activeTimers, db.timeEntries],
-          async () => {
-            await db.activeTimers.bulkDelete(
-              storedTimers.map((timer) => timer.id),
-            );
-            if (recoveredEntries.length > 0)
-              await db.timeEntries.bulkPut(recoveredEntries);
-          },
+
+      for (const timer of storedTimers) {
+        const timerEntries = recoveredEntries.filter(
+          (entry) => entry.taskId === timer.taskId,
         );
-        for (const timer of storedTimers) {
+        const remoteTimer = remoteBefore?.activeTimers.find(
+          (item) => item.taskId === timer.taskId,
+        );
+        await db.pendingMutations
+          .filter(
+            (mutation) =>
+              mutation.kind === "timer-start" &&
+              mutation.payload.id === timer.id,
+          )
+          .delete();
+        if (remoteTimer && remoteTimer.id !== timer.id) {
+          for (const entry of timerEntries)
+            await queue(
+              userId,
+              "entry-upsert",
+              entry as unknown as Record<string, unknown>,
+            );
+          setNotice(
+            "Time from an offline timer was recovered. The timer already active on another device remains active.",
+          );
+        } else {
           await queue(userId, "timer-stop", {
             timerId: timer.id,
-            entries: recoveredEntries.filter(
-              (entry) => entry.taskId === timer.taskId,
-            ) as unknown as Record<string, unknown>[],
+            entries: timerEntries as unknown as Record<string, unknown>[],
           });
         }
       }
+      if (storedTimers.length > 0) {
+        await db.activeTimers.bulkDelete(storedTimers.map((timer) => timer.id));
+        if (recoveredEntries.length > 0)
+          await db.timeEntries.bulkPut(recoveredEntries);
+        storedEntries = [...storedEntries, ...recoveredEntries];
+      }
+
+      let remoteAfter = remoteBefore;
+      if (onlineAccount) {
+        const result = await syncPendingMutations(userId);
+        setSyncState(result.error ? "error" : "synced");
+        if (!result.error) {
+          try {
+            remoteAfter = await loadRemoteSnapshot(userId);
+          } catch {
+            setSyncState("error");
+          }
+        }
+      }
+
+      if (remoteAfter) {
+        storedProfile = remoteAfter.profile;
+        storedGoals = remoteAfter.dailyGoals;
+        storedTasks = remoteAfter.tasks;
+        storedEntries = remoteAfter.entries;
+      }
+      if (storedGoals.length === 0) {
+        const goal = {
+          id: newId(),
+          userId,
+          effectiveDate: todayKey(storedProfile.timezone),
+          goalSeconds: 28_800,
+        };
+        storedGoals = [goal];
+        await queue(
+          userId,
+          "goal-upsert",
+          goal as unknown as Record<string, unknown>,
+        );
+      }
+      if (storedTasks.length === 0) {
+        storedTasks = seedTasks(userId);
+        for (const task of storedTasks)
+          await queue(
+            userId,
+            "task-upsert",
+            task as unknown as Record<string, unknown>,
+          );
+      }
+
+      await db.profiles.put(storedProfile);
+      await db.dailyGoals.where("userId").equals(userId).delete();
+      await db.tasks.where("userId").equals(userId).delete();
+      await db.activeTimers.where("userId").equals(userId).delete();
+      await db.timeEntries.where("userId").equals(userId).delete();
+      if (storedGoals.length > 0) await db.dailyGoals.bulkPut(storedGoals);
+      if (storedTasks.length > 0) await db.tasks.bulkPut(storedTasks);
+      if (remoteAfter?.activeTimers.length)
+        await db.activeTimers.bulkPut(remoteAfter.activeTimers);
+      if (storedEntries.length > 0)
+        await db.timeEntries.bulkPut(storedEntries);
       if (cancelled) return;
       setProfile(storedProfile);
       setDailyGoals(storedGoals);
       setTasks(storedTasks.sort((a, b) => a.sortOrder - b.sortOrder));
-      setActiveTimers([]);
-      setEntries([...storedEntries, ...recoveredEntries]);
+      setActiveTimers(remoteAfter?.activeTimers ?? []);
+      setEntries(storedEntries);
       setHydrated(true);
-      if (isSupabaseConfigured() && userId !== "local-demo") {
-        const result = await syncPendingMutations(userId);
-        if (!cancelled) setSyncState(result.error ? "error" : "synced");
-      }
     }
     void hydrate();
     return () => {
@@ -359,6 +426,15 @@ export function AppProvider({
 
   useEffect(() => {
     const onPageHide = () => {
+      const timerIds = activeRef.current.map((timer) => timer.id);
+      if (timerIds.length > 0 && userId !== "local-demo") {
+        void fetch("/api/timers/pause", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ timerIds }),
+          keepalive: true,
+        });
+      }
       void pauseAll();
     };
     const onOnline = () => {
@@ -390,9 +466,16 @@ export function AppProvider({
       }));
       setActiveTimers(next);
       void db.activeTimers.bulkPut(next);
+      if (
+        isSupabaseConfigured() &&
+        userId !== "local-demo" &&
+        navigator.onLine
+      ) {
+        for (const timer of next) void checkpointRemoteTimer(timer);
+      }
     }, 15_000);
     return () => window.clearInterval(checkpoint);
-  }, [activeTimers.length]);
+  }, [activeTimers.length, userId]);
 
   async function addTask(input: AddTaskInput) {
     const task: Task = {
@@ -603,6 +686,7 @@ export function AppProvider({
     now,
     hydrated,
     syncState,
+    notice,
     today,
     totals,
     streak,
@@ -619,6 +703,7 @@ export function AppProvider({
     updateProfile,
     updateDailyGoal,
     clearUserData,
+    dismissNotice: () => setNotice(null),
   };
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
