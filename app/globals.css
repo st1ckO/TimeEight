@@ -988,3 +988,186 @@ h3 {
     padding: 18px;
   }
 }
+
+.page-header {
+  margin: 24px 0 32px;
+}
+.setup-banner {
+  margin: -12px 0 22px;
+  padding: 15px 17px;
+  border: 1px solid color-mix(in srgb, var(--teal) 32%, var(--line));
+  border-radius: 17px;
+  background: var(--teal-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.setup-banner > div {
+  display: grid;
+  gap: 3px;
+}
+.setup-banner span {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+.setup-banner a {
+  display: grid;
+  place-items: center;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.page-header p:last-child {
+  max-width: 650px;
+  margin: 11px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.onboarding-card {
+  width: min(880px, 100%);
+  margin: 42px auto;
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.onboarding-intro {
+  padding: clamp(28px, 5vw, 52px);
+  background: var(--ink);
+  color: var(--surface);
+}
+.onboarding-intro p:last-child {
+  margin-top: 18px;
+  color: color-mix(in srgb, var(--surface) 70%, transparent);
+  line-height: 1.7;
+}
+.onboarding-form,
+.settings-form {
+  display: grid;
+  gap: 21px;
+}
+.onboarding-form {
+  padding: clamp(28px, 5vw, 52px);
+}
+.onboarding-form label,
+.settings-form label,
+.settings-form fieldset {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 0.84rem;
+  font-weight: 750;
+}
+.onboarding-form label > span,
+.check-row span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.onboarding-form input,
+.onboarding-form select {
+  min-height: 49px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-strong);
+  color: var(--ink);
+  font: inherit;
+}
+.onboarding-form small,
+.settings-form small {
+  color: var(--muted);
+  font-weight: 500;
+  line-height: 1.45;
+}
+.onboarding-form .check-row {
+  grid-template-columns: 24px 1fr;
+  align-items: center;
+}
+.check-row input {
+  width: 20px;
+  min-height: 20px;
+  accent-color: var(--teal);
+}
+.onboarding-submit {
+  justify-content: center;
+}
+.settings-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+  gap: 18px;
+}
+.settings-card {
+  padding: clamp(24px, 4vw, 36px);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.segmented.three {
+  grid-template-columns: repeat(3, 1fr);
+}
+.data-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 13px;
+}
+.data-card p {
+  color: var(--muted);
+  line-height: 1.6;
+}
+.data-card button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.data-card hr {
+  width: 100%;
+  margin: 13px 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+.danger-button {
+  min-height: 46px;
+  padding: 0 16px;
+  border: 1px solid color-mix(in srgb, #c24141 40%, var(--line));
+  border-radius: 13px;
+  background: color-mix(in srgb, #c24141 8%, var(--surface));
+  color: #bd3f3f;
+  font-weight: 750;
+  cursor: pointer;
+}
+.delete-confirm {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, #c24141 8%, var(--surface));
+}
+.delete-confirm > div {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 960px) {
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .onboarding-card {
+    margin: 24px auto;
+    grid-template-columns: 1fr;
+  }
+  .onboarding-intro {
+    min-height: 230px;
+  }
+}

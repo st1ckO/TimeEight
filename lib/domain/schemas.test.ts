@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  accountOperationSchema,
   dailyGoalSchema,
+  profileSchema,
   taskSchema,
   timeEntryCorrectionSchema,
 } from "./schemas";
@@ -33,5 +35,29 @@ describe("domain input schemas", () => {
         mutationId: crypto.randomUUID(),
       }),
     ).toThrow();
+  });
+});
+
+describe("account and profile contracts", () => {
+  it("rejects an invalid timezone", () => {
+    expect(
+      profileSchema.safeParse({
+        displayName: "Ralph",
+        timezone: "Moon/Base",
+        theme: "system",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("requires explicit deletion confirmation", () => {
+    expect(
+      accountOperationSchema.safeParse({
+        operation: "delete",
+        confirmation: "delete",
+      }).success,
+    ).toBe(true);
+    expect(
+      accountOperationSchema.safeParse({ operation: "delete" }).success,
+    ).toBe(false);
   });
 });

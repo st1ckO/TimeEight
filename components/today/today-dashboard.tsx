@@ -16,6 +16,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { Flame, Plus, ShieldCheck } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useTimeEight } from "@/components/app/app-provider";
 import {
@@ -110,6 +111,19 @@ export function TodayDashboard() {
           </h1>
         </div>
       </header>
+      {!app.profile.onboardingCompleted && (
+        <aside className="setup-banner">
+          <div>
+            <strong>Set your own rhythm.</strong>
+            <span>
+              Confirm your timezone and choose a realistic daily ring goal.
+            </span>
+          </div>
+          <Link className="secondary-button" href="/onboarding">
+            Finish setup
+          </Link>
+        </aside>
+      )}
       <section className="today-grid" aria-label="Today's progress">
         <article className="daily-card">
           <ProgressRing

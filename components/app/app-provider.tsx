@@ -172,6 +172,11 @@ export function AppProvider({
     activeRef.current = activeTimers;
   }, [activeTimers]);
 
+  useEffect(() => {
+    document.documentElement.dataset.theme =
+      profile.theme === "system" ? "" : profile.theme;
+  }, [profile.theme]);
+
   const persistMutation = useCallback(
     async (kind: PendingMutation["kind"], payload: Record<string, unknown>) => {
       await queue(userId, kind, payload);

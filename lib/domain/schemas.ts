@@ -5,7 +5,19 @@ const hexColor = /^#[0-9a-fA-F]{6}$/;
 
 export const profileSchema = z.object({
   displayName: z.string().trim().max(80),
-  timezone: z.string().trim().min(1).max(64),
+  timezone: z
+    .string()
+    .trim()
+    .min(1)
+    .max(64)
+    .refine((timezone) => {
+      try {
+        new Intl.DateTimeFormat("en", { timeZone: timezone }).format();
+        return true;
+      } catch {
+        return false;
+      }
+    }, "Choose a valid IANA timezone"),
   theme: z.enum(["system", "light", "dark"]),
 });
 
@@ -44,7 +56,29 @@ export const syncMutationSchema = z.object({
     "timer-stop",
     "entry-upsert",
     "entry-delete",
+    "profile-update",
+    "goal-upsert",
   ]),
   createdAt: z.string().datetime({ offset: true }),
   payload: z.record(z.string(), z.unknown()),
 });
+
+export const exportSchema = z.object({
+  schemaVersion: z.literal(1),
+  exportedAt: z.string().datetime({ offset: true }),
+  profile: profileSchema.extend({
+    id: z.string(),
+    onboardingCompleted: z.boolean(),
+  }),
+  dailyGoals: z.array(z.unknown()),
+  tasks: z.array(z.unknown()),
+  entries: z.array(z.unknown()),
+});
+
+export const accountOperationSchema = z.discriminatedUnion("operation", [
+  z.object({ operation: z.literal("export") }),
+  z.object({
+    operation: z.literal("delete"),
+    confirmation: z.literal("delete"),
+  }),
+]);
