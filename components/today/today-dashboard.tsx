@@ -15,7 +15,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Flame, Plus, ShieldCheck } from "lucide-react";
+import { Plus, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useTimeEight } from "@/components/app/app-provider";
@@ -24,8 +24,8 @@ import {
   goalForDate,
   formatDuration,
 } from "@/lib/domain/time";
-import { STREAK_SECONDS } from "@/lib/domain/streak";
 import { ProgressRing } from "@/components/ui/progress-ring";
+import { StreakBadge } from "@/components/ui/streak-badge";
 import { SortableTaskCard } from "@/components/tasks/sortable-task-card";
 import { TaskDialog } from "@/components/tasks/task-dialog";
 
@@ -38,8 +38,7 @@ export function TodayDashboard() {
   const dailyGoal = goalForDate(app.dailyGoals, app.today);
   const todaySeconds = app.totals.get(app.today) ?? 0;
   const dailyPercent = Math.round((todaySeconds / dailyGoal) * 100);
-  const streakRemaining = Math.max(0, STREAK_SECONDS - todaySeconds);
-  const streakDayLabel = `${app.streak.currentDays}-day streak`;
+  const streakTodaySeconds = app.streakTotals.get(app.today) ?? 0;
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, {
@@ -146,19 +145,11 @@ export function TodayDashboard() {
                 ? `${formatDuration(todaySeconds - dailyGoal)} beyond the ring, tracked without judgment.`
                 : `${formatDuration(dailyGoal - todaySeconds)} remain in your chosen daily goal.`}
             </p>
-            <div className="streak-line">
-              <Flame size={18} />
-              <span className="streak-copy">
-                <strong>{streakDayLabel}</strong>
-                {streakRemaining === 0 ? (
-                  <span>Today is protected with three tracked hours.</span>
-                ) : (
-                  <span>
-                    {formatDuration(streakRemaining)} to protect today.
-                  </span>
-                )}
-              </span>
-            </div>
+            <StreakBadge
+              days={app.streak.currentDays}
+              todaySeconds={streakTodaySeconds}
+              saverAvailable={app.streak.saverAvailable}
+            />
           </div>
         </article>
         <article className="saver-card">

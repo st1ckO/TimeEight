@@ -14,7 +14,44 @@ test.beforeEach(async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Morning walk" }),
   ).toBeVisible();
-  await expect(page.getByText(/^\d+-day streak$/)).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /\d+-day streak/i }),
+  ).toBeVisible();
+});
+
+test("does not use manual calendar time for streak progress", async ({
+  page,
+}) => {
+  await page.getByRole("link", { name: "Calendar" }).first().click();
+  await page.getByRole("button", { name: "Add time" }).click();
+  await page.getByLabel("Hours").fill("3");
+  await page.getByLabel("Minutes").fill("0");
+  await page.getByRole("button", { name: "Add time" }).click();
+  await page.getByRole("link", { name: "Today" }).first().click();
+
+  await expect(
+    page.getByRole("button", {
+      name: /0-day streak, 3h 0m left today/i,
+    }),
+  ).toBeVisible();
+});
+
+test("reveals the streak rules from the compact badge", async ({
+  page,
+}, testInfo) => {
+  const streakBadge = page.getByRole("button", { name: /\d+-day streak/i });
+
+  if (testInfo.project.name === "chromium") {
+    await streakBadge.hover();
+  } else {
+    await streakBadge.focus();
+  }
+
+  const tooltip = page.getByRole("tooltip");
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toContainText(
+    "Manual and corrected entries do not count toward streaks.",
+  );
 });
 
 test("tracks concurrent tasks and writes duration history", async ({

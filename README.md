@@ -11,7 +11,7 @@ TimeEight tracks all chosen time without labeling leisure or work as more valuab
 - Concurrent, timestamp-based timers with one active timer per task.
 - IndexedDB checkpoints, offline mutations, server reconciliation, and crash recovery.
 - Reorderable task templates with keyboard and button alternatives.
-- Historical daily goals, a fixed three-hour streak, and one weekly streak saver.
+- Historical daily goals, a timer-only three-hour streak, and one weekly streak saver.
 - Calendar rings, duration-based corrections, neutral records, JSON export, and deletion.
 - Supabase Auth/PostgreSQL with tested row-level security.
 - Responsive light/dark UI and an installable Serwist PWA shell.

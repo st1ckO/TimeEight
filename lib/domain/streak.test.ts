@@ -1,7 +1,52 @@
 import { describe, expect, it } from "vitest";
-import { calculateStreak, STREAK_SECONDS } from "./streak";
+import {
+  aggregateStreakEntries,
+  calculateStreak,
+  nextStreakTierAt,
+  STREAK_SECONDS,
+  streakTierForDays,
+} from "./streak";
 
 describe("streak calculation", () => {
+  it("excludes manual and corrected entries from qualifying time", () => {
+    const totals = aggregateStreakEntries([
+      {
+        localDate: "2026-09-11",
+        durationSeconds: 7_200,
+        source: "timer",
+        manuallyAdjusted: false,
+      },
+      {
+        localDate: "2026-09-11",
+        durationSeconds: 3_600,
+        source: "recovered",
+        manuallyAdjusted: false,
+      },
+      {
+        localDate: "2026-09-11",
+        durationSeconds: 10_800,
+        source: "manual",
+        manuallyAdjusted: true,
+      },
+      {
+        localDate: "2026-09-11",
+        durationSeconds: 10_800,
+        source: "timer",
+        manuallyAdjusted: true,
+      },
+    ]);
+
+    expect(totals.get("2026-09-11")).toBe(STREAK_SECONDS);
+  });
+
+  it("upgrades the flame at the configured streak milestones", () => {
+    expect(
+      [0, 3, 10, 30, 100, 200].map((days) => streakTierForDays(days)),
+    ).toEqual(["spark", "gold", "orange", "coral", "magenta", "violet"]);
+    expect(nextStreakTierAt(30)).toBe(100);
+    expect(nextStreakTierAt(200)).toBeNull();
+  });
+
   it("counts four consecutive qualifying days", () => {
     const totals = new Map([
       ["2026-09-08", STREAK_SECONDS],

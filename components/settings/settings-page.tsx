@@ -144,7 +144,10 @@ export function SettingsPage() {
                 setGoalHoursOverride(Number(event.target.value))
               }
             />
-            <small>The streak remains a separate three-hour threshold.</small>
+            <small>
+              The streak uses a separate three-hour threshold of unedited timer
+              time.
+            </small>
           </label>
           <fieldset>
             <legend>Theme</legend>

@@ -1,6 +1,41 @@
-import type { StreakSummary } from "./types";
+import type { StreakSummary, TimeEntry } from "./types";
 
 export const STREAK_SECONDS = 3 * 60 * 60;
+
+export type StreakTier =
+  "spark" | "gold" | "orange" | "coral" | "magenta" | "violet";
+
+export function streakTierForDays(days: number): StreakTier {
+  if (days >= 200) return "violet";
+  if (days >= 100) return "magenta";
+  if (days >= 30) return "coral";
+  if (days >= 10) return "orange";
+  if (days >= 3) return "gold";
+  return "spark";
+}
+
+export function nextStreakTierAt(days: number): number | null {
+  return [3, 10, 30, 100, 200].find((threshold) => threshold > days) ?? null;
+}
+
+export function aggregateStreakEntries(
+  entries: ReadonlyArray<
+    Pick<
+      TimeEntry,
+      "localDate" | "durationSeconds" | "source" | "manuallyAdjusted"
+    >
+  >,
+): Map<string, number> {
+  const totals = new Map<string, number>();
+  for (const entry of entries) {
+    if (entry.source === "manual" || entry.manuallyAdjusted) continue;
+    totals.set(
+      entry.localDate,
+      (totals.get(entry.localDate) ?? 0) + entry.durationSeconds,
+    );
+  }
+  return totals;
+}
 
 function dateFromKey(key: string): Date {
   const [year, month, day] = key.split("-").map(Number);

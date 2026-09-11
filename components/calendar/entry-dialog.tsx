@@ -95,8 +95,8 @@ function EntryForm({
         </div>
       </fieldset>
       <p className="form-hint">
-        Corrections are duration-based. They do not create a scheduled time
-        block.
+        Corrections use duration only. They count toward daily totals, but not
+        the three-hour streak.
       </p>
       {error && (
         <p className="form-message" role="alert">

@@ -24,7 +24,7 @@ import {
   localDateAt,
   splitDurationAcrossLocalDates,
 } from "@/lib/domain/time";
-import { calculateStreak } from "@/lib/domain/streak";
+import { aggregateStreakEntries, calculateStreak } from "@/lib/domain/streak";
 import {
   clearLocalUser,
   getLocalDatabase,
@@ -73,6 +73,7 @@ interface AppContextValue {
   notice: string | null;
   today: string;
   totals: Map<string, number>;
+  streakTotals: Map<string, number>;
   streak: ReturnType<typeof calculateStreak>;
   addTask(input: AddTaskInput): Promise<void>;
   updateTask(id: string, input: AddTaskInput): Promise<void>;
@@ -130,6 +131,27 @@ function seedTasks(userId: string): Task[] {
       archivedAt: null,
     },
   ];
+}
+
+function addActiveTimerTotals(
+  totals: Map<string, number>,
+  activeTimers: ActiveTimer[],
+  now: number,
+) {
+  for (const timer of activeTimers) {
+    const slices = splitDurationAcrossLocalDates(
+      timer.startedAt,
+      new Date(now).toISOString(),
+      timer.timezone,
+    );
+    for (const slice of slices) {
+      totals.set(
+        slice.localDate,
+        (totals.get(slice.localDate) ?? 0) + slice.durationSeconds,
+      );
+    }
+  }
+  return totals;
 }
 
 async function queue(
@@ -654,26 +676,18 @@ export function AppProvider({
   }
 
   const today = todayKey(profile.timezone);
-  const totals = useMemo(() => {
-    const all = aggregateEntries(entries);
-    for (const timer of activeTimers) {
-      const slices = splitDurationAcrossLocalDates(
-        timer.startedAt,
-        new Date(now).toISOString(),
-        timer.timezone,
-      );
-      for (const slice of slices) {
-        all.set(
-          slice.localDate,
-          (all.get(slice.localDate) ?? 0) + slice.durationSeconds,
-        );
-      }
-    }
-    return all;
-  }, [activeTimers, entries, now]);
+  const totals = useMemo(
+    () => addActiveTimerTotals(aggregateEntries(entries), activeTimers, now),
+    [activeTimers, entries, now],
+  );
+  const streakTotals = useMemo(
+    () =>
+      addActiveTimerTotals(aggregateStreakEntries(entries), activeTimers, now),
+    [activeTimers, entries, now],
+  );
   const streak = useMemo(
-    () => calculateStreak(totals, today, profile.accountStart),
-    [profile.accountStart, today, totals],
+    () => calculateStreak(streakTotals, today, profile.accountStart),
+    [profile.accountStart, streakTotals, today],
   );
   const value: AppContextValue = {
     userId,
@@ -688,6 +702,7 @@ export function AppProvider({
     notice,
     today,
     totals,
+    streakTotals,
     streak,
     addTask,
     updateTask,
