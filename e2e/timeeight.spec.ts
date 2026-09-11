@@ -17,6 +17,9 @@ test.beforeEach(async ({ page }) => {
   await expect(
     page.getByRole("button", { name: /\d+-day streak/i }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /weekly streak saver/i }),
+  ).toBeVisible();
 });
 
 test("does not use manual calendar time for streak progress", async ({
@@ -51,6 +54,26 @@ test("reveals the streak rules from the compact badge", async ({
   await expect(tooltip).toBeVisible();
   await expect(tooltip).toContainText(
     "Manual and corrected entries do not count toward streaks.",
+  );
+});
+
+test("reveals weekly saver rules from the compact shield", async ({
+  page,
+}, testInfo) => {
+  const saverBadge = page.getByRole("button", {
+    name: /weekly streak saver/i,
+  });
+
+  if (testInfo.project.name === "chromium") {
+    await saverBadge.hover();
+  } else {
+    await saverBadge.focus();
+  }
+
+  const tooltip = page.getByRole("tooltip");
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toContainText(
+    "It automatically protects the first missed day each Monday–Sunday.",
   );
 });
 

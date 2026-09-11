@@ -59,6 +59,10 @@ function mondayKey(key: string): string {
   return dateKey(date);
 }
 
+export function nextSaverResetDate(today: string): string {
+  return addDays(mondayKey(today), 7);
+}
+
 export function calculateStreak(
   totals: ReadonlyMap<string, number>,
   today: string,

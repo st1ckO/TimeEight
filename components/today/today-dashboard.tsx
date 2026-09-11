@@ -15,7 +15,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Plus, ShieldCheck } from "lucide-react";
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useTimeEight } from "@/components/app/app-provider";
@@ -26,6 +26,7 @@ import {
 } from "@/lib/domain/time";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { StreakBadge } from "@/components/ui/streak-badge";
+import { StreakSaverBadge } from "@/components/ui/streak-saver-badge";
 import { SortableTaskCard } from "@/components/tasks/sortable-task-card";
 import { TaskDialog } from "@/components/tasks/task-dialog";
 
@@ -145,29 +146,18 @@ export function TodayDashboard() {
                 ? `${formatDuration(todaySeconds - dailyGoal)} beyond the ring, tracked without judgment.`
                 : `${formatDuration(dailyGoal - todaySeconds)} remain in your chosen daily goal.`}
             </p>
-            <StreakBadge
-              days={app.streak.currentDays}
-              todaySeconds={streakTodaySeconds}
-              saverAvailable={app.streak.saverAvailable}
-            />
-          </div>
-        </article>
-        <article className="saver-card">
-          <div className="shield">
-            <ShieldCheck size={24} />
-          </div>
-          <div>
-            <p className="eyebrow">Weekly streak saver</p>
-            <h3>
-              {app.streak.saverAvailable
-                ? "Ready when life happens"
-                : "Used this week"}
-            </h3>
-            <p>
-              {app.streak.saverAvailable
-                ? "Available through Sunday. It protects the first missed day automatically."
-                : `Consumed on ${app.streak.saverConsumedDate}. A new saver arrives Monday.`}
-            </p>
+            <div className="status-badges" aria-label="Streak status">
+              <StreakBadge
+                days={app.streak.currentDays}
+                todaySeconds={streakTodaySeconds}
+              />
+              <StreakSaverBadge
+                available={app.streak.saverAvailable}
+                consumedDate={app.streak.saverConsumedDate}
+                today={app.today}
+                timezone={app.profile.timezone}
+              />
+            </div>
           </div>
         </article>
       </section>

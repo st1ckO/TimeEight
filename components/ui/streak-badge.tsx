@@ -12,11 +12,9 @@ import { formatDuration } from "@/lib/domain/time";
 export function StreakBadge({
   days,
   todaySeconds,
-  saverAvailable,
 }: {
   days: number;
   todaySeconds: number;
-  saverAvailable: boolean;
 }) {
   const tooltipId = useId();
   const completedToday = todaySeconds >= STREAK_SECONDS;
@@ -28,7 +26,7 @@ export function StreakBadge({
     : `${formatDuration(remaining)} left today`;
 
   return (
-    <span className="streak-badge-wrap">
+    <span className="status-badge-wrap">
       <button
         className={`streak-badge ${completedToday ? `is-complete streak-${tier}` : "is-pending"}`}
         type="button"
@@ -40,7 +38,7 @@ export function StreakBadge({
           <strong>{days}</strong> d
         </span>
       </button>
-      <span className="streak-tooltip" id={tooltipId} role="tooltip">
+      <span className="status-tooltip" id={tooltipId} role="tooltip">
         <strong>
           {completedToday
             ? "Today is protected"
@@ -50,11 +48,7 @@ export function StreakBadge({
           Track three hours with task timers before your local day ends. Manual
           and corrected entries do not count toward streaks.
         </span>
-        <span>
-          {saverAvailable
-            ? "Your first missed day each Monday–Sunday uses the weekly saver. Another miss resets the streak."
-            : "This week’s saver is already used. An unfinished day resets the streak."}
-        </span>
+        <span>An unfinished day without protection resets the streak.</span>
         {nextTier && <span>Next flame color at {nextTier} days.</span>}
       </span>
     </span>

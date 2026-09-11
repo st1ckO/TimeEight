@@ -4,9 +4,7 @@ import { StreakBadge } from "./streak-badge";
 
 describe("StreakBadge", () => {
   it("shows a completed tier and explains eligible time", () => {
-    render(
-      <StreakBadge days={30} todaySeconds={10_800} saverAvailable={true} />,
-    );
+    render(<StreakBadge days={30} todaySeconds={10_800} />);
 
     const badge = screen.getByRole("button", {
       name: /30-day streak, protected today/i,
@@ -19,16 +17,14 @@ describe("StreakBadge", () => {
   });
 
   it("uses the muted pending state until three timer hours are reached", () => {
-    render(
-      <StreakBadge days={4} todaySeconds={3_600} saverAvailable={false} />,
-    );
+    render(<StreakBadge days={4} todaySeconds={3_600} />);
 
     const badge = screen.getByRole("button", {
       name: /4-day streak, 2h 0m left today/i,
     });
     expect(badge).toHaveClass("is-pending");
     expect(screen.getByRole("tooltip")).toHaveTextContent(
-      "An unfinished day resets the streak",
+      "An unfinished day without protection resets the streak",
     );
   });
 });

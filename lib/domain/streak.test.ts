@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   aggregateStreakEntries,
   calculateStreak,
+  nextSaverResetDate,
   nextStreakTierAt,
   STREAK_SECONDS,
   streakTierForDays,
@@ -45,6 +46,11 @@ describe("streak calculation", () => {
     ).toEqual(["spark", "gold", "orange", "coral", "magenta", "violet"]);
     expect(nextStreakTierAt(30)).toBe(100);
     expect(nextStreakTierAt(200)).toBeNull();
+  });
+
+  it("resets the weekly saver at the next local Monday", () => {
+    expect(nextSaverResetDate("2026-09-07")).toBe("2026-09-14");
+    expect(nextSaverResetDate("2026-09-13")).toBe("2026-09-14");
   });
 
   it("counts four consecutive qualifying days", () => {
