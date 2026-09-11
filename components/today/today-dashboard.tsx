@@ -39,6 +39,7 @@ export function TodayDashboard() {
   const todaySeconds = app.totals.get(app.today) ?? 0;
   const dailyPercent = Math.round((todaySeconds / dailyGoal) * 100);
   const streakRemaining = Math.max(0, STREAK_SECONDS - todaySeconds);
+  const streakDayLabel = `${app.streak.currentDays}-day streak`;
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, {
@@ -147,17 +148,14 @@ export function TodayDashboard() {
             </p>
             <div className="streak-line">
               <Flame size={18} />
-              <span>
+              <span className="streak-copy">
+                <strong>{streakDayLabel}</strong>
                 {streakRemaining === 0 ? (
-                  <>
-                    <strong>Streak protected.</strong> You reached three tracked
-                    hours.
-                  </>
+                  <span>Today is protected with three tracked hours.</span>
                 ) : (
-                  <>
-                    <strong>{formatDuration(streakRemaining)}</strong> to
-                    protect your {app.streak.currentDays || "new"}-day streak
-                  </>
+                  <span>
+                    {formatDuration(streakRemaining)} to protect today.
+                  </span>
                 )}
               </span>
             </div>

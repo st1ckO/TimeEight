@@ -14,6 +14,7 @@ test.beforeEach(async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Morning walk" }),
   ).toBeVisible();
+  await expect(page.getByText(/^\d+-day streak$/)).toBeVisible();
 });
 
 test("tracks concurrent tasks and writes duration history", async ({

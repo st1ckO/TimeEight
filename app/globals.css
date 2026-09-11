@@ -286,6 +286,14 @@ h3 {
 .streak-line svg {
   color: var(--amber);
 }
+.streak-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.streak-copy > span {
+  color: var(--muted);
+}
 .saver-card {
   padding: 28px;
   display: flex;

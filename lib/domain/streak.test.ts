@@ -2,6 +2,20 @@ import { describe, expect, it } from "vitest";
 import { calculateStreak, STREAK_SECONDS } from "./streak";
 
 describe("streak calculation", () => {
+  it("counts four consecutive qualifying days", () => {
+    const totals = new Map([
+      ["2026-09-08", STREAK_SECONDS],
+      ["2026-09-09", STREAK_SECONDS],
+      ["2026-09-10", STREAK_SECONDS],
+      ["2026-09-11", STREAK_SECONDS],
+    ]);
+
+    const result = calculateStreak(totals, "2026-09-11", "2026-09-08");
+
+    expect(result.currentDays).toBe(4);
+    expect(result.longestDays).toBe(4);
+  });
+
   it("protects the first missed day in a Monday-Sunday week", () => {
     const totals = new Map([
       ["2026-09-07", STREAK_SECONDS],
