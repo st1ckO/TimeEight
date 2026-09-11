@@ -1,0 +1,35 @@
+# Dependencies and builds
+node_modules/
+.pnpm-store/
+.next/
+out/
+dist/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# Local environment and hosting state
+.env
+.env.*
+!.env.example
+.vercel/
+.sites-runtime/
+
+# Private planning and agent state
+/PLAN.md
+/plan.md
+/AGENTS.md
+/agents.md
+/.codex/
+/.agents/
+.aider*
+
+# Logs, editors, and operating systems
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
