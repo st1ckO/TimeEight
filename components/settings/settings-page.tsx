@@ -27,14 +27,19 @@ export function SettingsPage() {
   const router = useRouter();
   const [nameOverride, setNameOverride] = useState<string | null>(null);
   const [timezoneOverride, setTimezoneOverride] = useState<string | null>(null);
-  const [themeOverride, setThemeOverride] = useState<ThemePreference | null>(null);
-  const [goalHoursOverride, setGoalHoursOverride] = useState<number | null>(null);
+  const [themeOverride, setThemeOverride] = useState<ThemePreference | null>(
+    null,
+  );
+  const [goalHoursOverride, setGoalHoursOverride] = useState<number | null>(
+    null,
+  );
   const [message, setMessage] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const name = nameOverride ?? app.profile.displayName;
   const timezone = timezoneOverride ?? app.profile.timezone;
   const theme = themeOverride ?? app.profile.theme;
-  const goalHours = goalHoursOverride ?? goalForDate(app.dailyGoals, app.today) / 3600;
+  const goalHours =
+    goalHoursOverride ?? goalForDate(app.dailyGoals, app.today) / 3600;
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
@@ -135,7 +140,9 @@ export function SettingsPage() {
               max={24}
               step={0.25}
               value={goalHours}
-              onChange={(event) => setGoalHoursOverride(Number(event.target.value))}
+              onChange={(event) =>
+                setGoalHoursOverride(Number(event.target.value))
+              }
             />
             <small>The streak remains a separate three-hour threshold.</small>
           </label>
