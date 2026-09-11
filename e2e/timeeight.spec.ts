@@ -96,6 +96,32 @@ test("tracks concurrent tasks and writes duration history", async ({
   ).toBeVisible();
 });
 
+test("reverts a timer correction to restore streak eligibility", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "Start Morning walk" }).click();
+  await page.waitForTimeout(1100);
+  await page.getByRole("button", { name: "Pause Morning walk" }).click();
+  await page.getByRole("link", { name: "Calendar" }).first().click();
+
+  await page
+    .getByRole("button", { name: "Edit entry for Morning walk" })
+    .click();
+  await page.getByLabel("Hours").fill("1");
+  await page.getByLabel("Minutes").fill("0");
+  await page.getByRole("button", { name: "Save correction" }).click();
+
+  await expect(page.getByText("Timer · corrected")).toBeVisible();
+  await page
+    .getByRole("button", { name: "Revert correction for Morning walk" })
+    .click();
+
+  await expect(page.getByText("Timer · corrected")).toBeHidden();
+  await expect(
+    page.getByRole("button", { name: "Revert correction for Morning walk" }),
+  ).toBeHidden();
+});
+
 test("offers a button alternative to drag reordering", async ({ page }) => {
   await page.getByRole("button", { name: "Actions for Morning walk" }).click();
   await page.getByRole("button", { name: "Move down" }).click();

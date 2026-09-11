@@ -35,6 +35,12 @@ function toEntryRow(payload: Record<string, unknown>) {
     started_at: (payload.startedAt as string | null) ?? null,
     ended_at: (payload.endedAt as string | null) ?? null,
     manually_adjusted: Boolean(payload.manuallyAdjusted),
+    correction_original_task_id:
+      (payload.correctionOriginalTaskId as string | null) ?? null,
+    correction_original_local_date:
+      (payload.correctionOriginalLocalDate as string | null) ?? null,
+    correction_original_duration_seconds:
+      (payload.correctionOriginalDurationSeconds as number | null) ?? null,
     mutation_id: payload.mutationId as string,
   };
 }
@@ -209,6 +215,10 @@ export async function loadRemoteSnapshot(
       startedAt: row.started_at,
       endedAt: row.ended_at,
       manuallyAdjusted: row.manually_adjusted,
+      correctionOriginalTaskId: row.correction_original_task_id,
+      correctionOriginalLocalDate: row.correction_original_local_date,
+      correctionOriginalDurationSeconds:
+        row.correction_original_duration_seconds,
       mutationId: row.mutation_id,
     })),
   };

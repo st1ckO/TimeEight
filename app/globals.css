@@ -1184,8 +1184,13 @@ h3 {
   padding: 12px 8px;
   border-bottom: 1px solid var(--line);
   display: grid;
-  grid-template-columns: 7px minmax(0, 1fr) auto 44px 44px;
+  grid-template-columns: 7px minmax(0, 1fr) auto auto;
   gap: 9px;
+  align-items: center;
+}
+.history-entry-actions {
+  display: flex;
+  gap: 4px;
   align-items: center;
 }
 .history-entry .task-dot {

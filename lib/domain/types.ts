@@ -51,6 +51,9 @@ export interface TimeEntry {
   startedAt: string | null;
   endedAt: string | null;
   manuallyAdjusted: boolean;
+  correctionOriginalTaskId: string | null;
+  correctionOriginalLocalDate: string | null;
+  correctionOriginalDurationSeconds: number | null;
   mutationId: string;
 }
 

@@ -19,6 +19,10 @@ import type {
   TimeEntry,
 } from "@/lib/domain/types";
 import {
+  correctTimeEntry,
+  revertTimeEntryCorrection,
+} from "@/lib/domain/corrections";
+import {
   aggregateEntries,
   elapsedSeconds,
   localDateAt,
@@ -84,6 +88,7 @@ interface AppContextValue {
   pauseAll(): Promise<void>;
   addEntry(input: EntryInput): Promise<void>;
   updateEntry(id: string, input: EntryInput): Promise<void>;
+  revertEntryCorrection(id: string): Promise<void>;
   deleteEntry(id: string): Promise<void>;
   updateProfile(input: {
     displayName: string;
@@ -272,6 +277,9 @@ export function AppProvider({
           startedAt: slice.startedAt,
           endedAt: slice.endedAt,
           manuallyAdjusted: false,
+          correctionOriginalTaskId: null,
+          correctionOriginalLocalDate: null,
+          correctionOriginalDurationSeconds: null,
           mutationId: newId(),
         }));
       });
@@ -417,6 +425,9 @@ export function AppProvider({
         startedAt: slice.startedAt,
         endedAt: slice.endedAt,
         manuallyAdjusted: false,
+        correctionOriginalTaskId: null,
+        correctionOriginalLocalDate: null,
+        correctionOriginalDurationSeconds: null,
         mutationId: newId(),
       }));
       setActiveTimers((current) =>
@@ -597,6 +608,9 @@ export function AppProvider({
       startedAt: null,
       endedAt: null,
       manuallyAdjusted: true,
+      correctionOriginalTaskId: null,
+      correctionOriginalLocalDate: null,
+      correctionOriginalDurationSeconds: null,
       mutationId: newId(),
     };
     setEntries((current) => [...current, entry]);
@@ -610,7 +624,7 @@ export function AppProvider({
   async function updateEntry(id: string, input: EntryInput) {
     const existing = entries.find((entry) => entry.id === id);
     if (!existing) return;
-    const next: TimeEntry = { ...existing, ...input, manuallyAdjusted: true };
+    const next = correctTimeEntry(existing, input);
     setEntries((current) =>
       current.map((entry) => (entry.id === id ? next : entry)),
     );
@@ -618,6 +632,24 @@ export function AppProvider({
     await persistMutation(
       "entry-upsert",
       next as unknown as Record<string, unknown>,
+    );
+  }
+
+  async function revertEntryCorrection(id: string) {
+    const existing = entries.find((entry) => entry.id === id);
+    if (!existing) return;
+    const next = revertTimeEntryCorrection(existing);
+    if (!next) return;
+    setEntries((current) =>
+      current.map((entry) => (entry.id === id ? next : entry)),
+    );
+    await getLocalDatabase()?.timeEntries.put(next);
+    await persistMutation(
+      "entry-upsert",
+      next as unknown as Record<string, unknown>,
+    );
+    setNotice(
+      "Correction reverted. The original timer time can count toward your streak again.",
     );
   }
 
@@ -713,6 +745,7 @@ export function AppProvider({
     pauseAll,
     addEntry,
     updateEntry,
+    revertEntryCorrection,
     deleteEntry,
     updateProfile,
     updateDailyGoal,

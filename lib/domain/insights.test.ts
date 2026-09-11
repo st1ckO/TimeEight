@@ -16,6 +16,9 @@ const entry = (
   startedAt: null,
   endedAt: null,
   manuallyAdjusted: false,
+  correctionOriginalTaskId: null,
+  correctionOriginalLocalDate: null,
+  correctionOriginalDurationSeconds: null,
   mutationId: `m-${id}`,
 });
 

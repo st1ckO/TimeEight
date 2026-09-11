@@ -68,6 +68,9 @@ describe("time domain", () => {
         startedAt: null,
         endedAt: null,
         manuallyAdjusted: false,
+        correctionOriginalTaskId: null,
+        correctionOriginalLocalDate: null,
+        correctionOriginalDurationSeconds: null,
         mutationId: "m1",
       },
       {
@@ -80,6 +83,9 @@ describe("time domain", () => {
         startedAt: null,
         endedAt: null,
         manuallyAdjusted: false,
+        correctionOriginalTaskId: null,
+        correctionOriginalLocalDate: null,
+        correctionOriginalDurationSeconds: null,
         mutationId: "m2",
       },
     ];

@@ -5,6 +5,7 @@ import {
   ChevronRight,
   Pencil,
   Plus,
+  RotateCcw,
   ShieldCheck,
   Trash2,
 } from "lucide-react";
@@ -12,6 +13,7 @@ import { useMemo, useState } from "react";
 import { useTimeEight } from "@/components/app/app-provider";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { formatDuration, goalForDate } from "@/lib/domain/time";
+import { canRevertTimeEntryCorrection } from "@/lib/domain/corrections";
 import type { TimeEntry } from "@/lib/domain/types";
 import { EntryDialog } from "./entry-dialog";
 
@@ -187,32 +189,44 @@ export function CalendarPage() {
                     </p>
                   </div>
                   <strong>{formatDuration(entry.durationSeconds)}</strong>
-                  <button
-                    className="icon-button"
-                    aria-label="Edit entry"
-                    onClick={() => setEditing(entry)}
-                  >
-                    <Pencil size={17} />
-                  </button>
-                  {deleting !== entry.id ? (
+                  <div className="history-entry-actions">
                     <button
-                      className="icon-button danger-icon"
-                      aria-label="Delete entry"
-                      onClick={() => setDeleting(entry.id)}
+                      className="icon-button"
+                      aria-label={`Edit entry for ${tasksById.get(entry.taskId)?.name ?? "archived task"}`}
+                      onClick={() => setEditing(entry)}
                     >
-                      <Trash2 size={17} />
+                      <Pencil size={17} />
                     </button>
-                  ) : (
-                    <button
-                      className="danger-button compact"
-                      onClick={() => {
-                        void app.deleteEntry(entry.id);
-                        setDeleting(null);
-                      }}
-                    >
-                      Confirm
-                    </button>
-                  )}
+                    {canRevertTimeEntryCorrection(entry) && (
+                      <button
+                        className="icon-button"
+                        aria-label={`Revert correction for ${tasksById.get(entry.taskId)?.name ?? "archived task"}`}
+                        title="Restore the original timer entry and streak eligibility"
+                        onClick={() => void app.revertEntryCorrection(entry.id)}
+                      >
+                        <RotateCcw size={17} />
+                      </button>
+                    )}
+                    {deleting !== entry.id ? (
+                      <button
+                        className="icon-button danger-icon"
+                        aria-label={`Delete entry for ${tasksById.get(entry.taskId)?.name ?? "archived task"}`}
+                        onClick={() => setDeleting(entry.id)}
+                      >
+                        <Trash2 size={17} />
+                      </button>
+                    ) : (
+                      <button
+                        className="danger-button compact"
+                        onClick={() => {
+                          void app.deleteEntry(entry.id);
+                          setDeleting(null);
+                        }}
+                      >
+                        Confirm
+                      </button>
+                    )}
+                  </div>
                 </article>
               ))
             )}

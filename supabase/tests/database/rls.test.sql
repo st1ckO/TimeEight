@@ -1,6 +1,6 @@
 begin;
 
-select plan(8);
+select plan(12);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
 values
@@ -23,6 +23,28 @@ select results_eq(
 select lives_ok(
   $$ insert into public.tasks (user_id, name, goal_kind, target_seconds, sort_order) values ('11111111-1111-4111-8111-111111111111', 'Another task', 'limit', 1800, 1) $$,
   'owner can insert their task'
+);
+
+select lives_ok(
+  $$ insert into public.time_entries (id, user_id, task_id, local_date, duration_seconds, source, mutation_id) values ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', '11111111-1111-4111-8111-111111111111', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', current_date, 3600, 'timer', gen_random_uuid()) $$,
+  'owner can insert a timer entry'
+);
+
+select lives_ok(
+  $$ update public.time_entries set duration_seconds = 1800, manually_adjusted = true, correction_original_task_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', correction_original_local_date = current_date, correction_original_duration_seconds = 3600 where id = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' $$,
+  'owner can preserve the original values when correcting timer time'
+);
+
+select lives_ok(
+  $$ update public.time_entries set duration_seconds = correction_original_duration_seconds, task_id = correction_original_task_id, local_date = correction_original_local_date, manually_adjusted = false, correction_original_task_id = null, correction_original_local_date = null, correction_original_duration_seconds = null where id = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' $$,
+  'owner can restore the original timer entry'
+);
+
+select throws_ok(
+  $$ update public.time_entries set manually_adjusted = true where id = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' $$,
+  '23514',
+  null,
+  'a corrected timer entry requires a complete original snapshot'
 );
 
 select throws_ok(

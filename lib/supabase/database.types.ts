@@ -130,6 +130,9 @@ export interface Database {
           started_at: string | null;
           ended_at: string | null;
           manually_adjusted: boolean;
+          correction_original_task_id: string | null;
+          correction_original_local_date: string | null;
+          correction_original_duration_seconds: number | null;
           mutation_id: string;
           created_at: string;
           updated_at: string;
@@ -144,6 +147,9 @@ export interface Database {
           started_at?: string | null;
           ended_at?: string | null;
           manually_adjusted?: boolean;
+          correction_original_task_id?: string | null;
+          correction_original_local_date?: string | null;
+          correction_original_duration_seconds?: number | null;
           mutation_id: string;
         };
         Update: {
@@ -151,6 +157,9 @@ export interface Database {
           local_date?: string;
           duration_seconds?: number;
           manually_adjusted?: boolean;
+          correction_original_task_id?: string | null;
+          correction_original_local_date?: string | null;
+          correction_original_duration_seconds?: number | null;
         };
         Relationships: [];
       };
