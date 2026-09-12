@@ -21,7 +21,11 @@ const contentSecurityPolicy = [
 ].join("; ");
 
 const withSerwist = withSerwistInit({
-  additionalPrecacheEntries: [{ url: "/offline", revision: "v1" }],
+  additionalPrecacheEntries: [
+    { url: "/offline", revision: "v4" },
+    { url: "/brand/time-eight-light.png", revision: "v1" },
+    { url: "/brand/time-eight-dark.png", revision: "v1" },
+  ],
   swSrc: "app/sw.ts",
   swDest: "public/sw.js",
   disable: development,

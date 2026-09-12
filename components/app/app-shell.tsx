@@ -3,6 +3,7 @@
 import { BarChart3, CalendarDays, Home, Settings, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { BrandWordmark } from "@/components/ui/brand-wordmark";
 import { useTimeEight } from "./app-provider";
 import { WebMcpTools } from "./webmcp-tools";
 
@@ -29,9 +30,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="app-frame">
       <WebMcpTools />
       <aside className="sidebar">
-        <Link className="brand" href="/today" aria-label="TimeEight home">
-          <span>8</span>
-          <strong>TimeEight</strong>
+        <Link className="brand" href="/today" aria-label="Time eIghT home">
+          <BrandWordmark />
         </Link>
         <nav aria-label="Primary">
           {destinations.map(({ href, label, icon: Icon }) => (
@@ -52,6 +52,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <main className="main-surface">
+        <Link
+          className="brand mobile-brand"
+          href="/today"
+          aria-label="Time eIghT home"
+        >
+          <BrandWordmark />
+        </Link>
         <div className="app-status">
           <span className={`sync-dot ${syncState}`} />
           {syncState === "local" ? "Local demo" : syncState}

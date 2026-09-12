@@ -1,11 +1,11 @@
 import { Clock3, WifiOff } from "lucide-react";
+import { BrandWordmark } from "@/components/ui/brand-wordmark";
 
 export default function OfflinePage() {
   return (
     <main className="offline-page">
-      <a className="brand" href="/today">
-        <span>8</span>
-        <strong>TimeEight</strong>
+      <a className="brand" href="/today" aria-label="Time eIghT home">
+        <BrandWordmark />
       </a>
       <section>
         <WifiOff size={34} />

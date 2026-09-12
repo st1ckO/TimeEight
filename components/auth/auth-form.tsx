@@ -5,6 +5,7 @@ import { Turnstile } from "@marsidev/react-turnstile";
 import { ArrowRight, Clock3 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
+import { BrandWordmark } from "@/components/ui/brand-wordmark";
 
 interface AuthFormProps {
   configured: boolean;
@@ -91,9 +92,12 @@ export function AuthForm({
   return (
     <main className="auth-page">
       <section className="auth-story" aria-label="About TimeEight">
-        <a className="brand auth-brand" href="/today">
-          <span>8</span>
-          <strong>TimeEight</strong>
+        <a
+          className="brand auth-brand"
+          href="/today"
+          aria-label="Time eIghT home"
+        >
+          <BrandWordmark />
         </a>
         <div>
           <p className="eyebrow">Time it your way</p>
