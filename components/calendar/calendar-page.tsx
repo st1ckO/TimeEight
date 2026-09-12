@@ -1,9 +1,14 @@
 "use client";
+import * as Select from "@radix-ui/react-select";
 import { taskTargetForDate } from "@/lib/domain/task-targets";
 
 import {
   ChevronLeft,
   ChevronRight,
+  ArrowDown,
+  ArrowUp,
+  ChevronDown,
+  Check,
   Pencil,
   Plus,
   RotateCcw,
@@ -45,10 +50,18 @@ export function CalendarPage() {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<TimeEntry | undefined>();
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [historyOrder, setHistoryOrder] = useState<"latest" | "oldest">(
+    "latest",
+  );
   const cells = useMemo(() => monthCells(month), [month]);
   const entries = app.entries
     .filter((entry) => entry.localDate === selectedDate)
-    .sort((a, b) => (b.startedAt ?? "").localeCompare(a.startedAt ?? ""));
+    .sort((a, b) => {
+      if (!a.startedAt) return b.startedAt ? 1 : 0;
+      if (!b.startedAt) return -1;
+      const chronological = a.startedAt.localeCompare(b.startedAt);
+      return historyOrder === "latest" ? -chronological : chronological;
+    });
   const tasksById = new Map(app.tasks.map((task) => [task.id, task]));
 
   function shiftMonth(amount: number) {
@@ -147,28 +160,89 @@ export function CalendarPage() {
           </div>
         </section>
         <aside className="day-detail">
-          <div className="section-heading">
+          <div className="day-summary">
             <div>
               <p className="eyebrow">Selected day</p>
               <h2>{selectedLabel}</h2>
             </div>
+            <div className="day-total">
+              <strong>
+                {formatDuration(app.totals.get(selectedDate) ?? 0)}
+              </strong>
+              <span>
+                tracked against{" "}
+                {formatDuration(
+                  goalForDate(
+                    app.dailyGoals,
+                    selectedDate,
+                    undefined,
+                    app.today,
+                  ),
+                )}
+              </span>
+            </div>
+          </div>
+          <div className="day-history-toolbar">
+            <Select.Root
+              value={historyOrder}
+              onValueChange={(value) =>
+                setHistoryOrder(value as "latest" | "oldest")
+              }
+            >
+              <Select.Trigger
+                className="history-sort"
+                aria-label={`History order: ${historyOrder === "latest" ? "Latest first" : "Oldest first"}`}
+              >
+                {historyOrder === "latest" ? (
+                  <ArrowDown size={16} aria-hidden />
+                ) : (
+                  <ArrowUp size={16} aria-hidden />
+                )}
+                <Select.Value />
+                <Select.Icon>
+                  <ChevronDown size={14} aria-hidden />
+                </Select.Icon>
+              </Select.Trigger>
+              <Select.Portal>
+                <Select.Content
+                  className="history-sort-menu entry-task-menu"
+                  position="popper"
+                  align="start"
+                  sideOffset={6}
+                  collisionPadding={14}
+                >
+                  <Select.Viewport>
+                    <Select.Item value="latest" className="entry-task-option">
+                      <div>
+                        <Select.ItemText>Latest first</Select.ItemText>
+                        <small>Recent timers at the top</small>
+                      </div>
+                      <Select.ItemIndicator>
+                        <Check size={16} aria-hidden />
+                      </Select.ItemIndicator>
+                    </Select.Item>
+                    <Select.Item value="oldest" className="entry-task-option">
+                      <div>
+                        <Select.ItemText>Oldest first</Select.ItemText>
+                        <small>Earlier timers at the top</small>
+                      </div>
+                      <Select.ItemIndicator>
+                        <Check size={16} aria-hidden />
+                      </Select.ItemIndicator>
+                    </Select.Item>
+                  </Select.Viewport>
+                  <p>Manual entries stay at the end.</p>
+                </Select.Content>
+              </Select.Portal>
+            </Select.Root>
             <button
-              className="primary-button"
+              className="primary-button calendar-add-time"
               onClick={() => setAdding(true)}
               disabled={app.tasks.length === 0}
             >
               <Plus size={18} />
               Add time
             </button>
-          </div>
-          <div className="day-total">
-            <strong>{formatDuration(app.totals.get(selectedDate) ?? 0)}</strong>
-            <span>
-              tracked against{" "}
-              {formatDuration(
-                goalForDate(app.dailyGoals, selectedDate, undefined, app.today),
-              )}
-            </span>
           </div>
           <div className="history-list">
             {entries.length === 0 ? (

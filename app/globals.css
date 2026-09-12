@@ -1672,25 +1672,83 @@ h3 {
   right: 6px;
   color: var(--amber);
 }
-.day-detail .section-heading {
-  align-items: start;
+.day-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(110px, 0.8fr);
+  align-items: center;
+  gap: 16px;
+}
+.day-summary h2 {
+  margin: 0;
+  font-size: clamp(1.15rem, 1.7vw, 1.5rem);
+  line-height: 1.35;
+}
+.day-summary .eyebrow {
+  margin-bottom: 8px;
+}
+.day-history-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 20px 0 12px;
+}
+.day-detail .history-sort {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+.history-sort > span:last-child {
+  display: flex;
+  color: var(--muted);
+}
+.history-sort-menu.entry-task-menu {
+  width: 230px;
+  max-width: calc(100vw - 28px);
+}
+.history-sort-menu small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 400;
+}
+.history-sort-menu p {
+  margin: 6px 8px 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.7rem;
 }
 .day-total {
-  margin: 24px 0;
-  padding: 20px;
-  border-radius: 18px;
+  margin: 0;
+  padding: 14px;
+  border-radius: 14px;
   background: var(--teal-soft);
   display: grid;
 }
 .day-total strong {
   color: var(--teal);
-  font-size: 1.8rem;
+  font-size: 1.5rem;
   letter-spacing: -0.04em;
 }
 .day-total span {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.72rem;
 }
 .history-list {
   display: grid;
@@ -1732,6 +1790,102 @@ h3 {
   min-height: 40px;
   padding: 0 10px;
 }
+.day-detail .calendar-add-time {
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  width: auto;
+  white-space: nowrap;
+  gap: 8px;
+  padding-inline: 16px;
+}
+.entry-dialog .dialog-heading {
+  margin-bottom: 12px;
+}
+.entry-description {
+  margin: 0 0 24px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+.entry-task-field {
+  display: grid;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+.entry-task-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.entry-task-trigger > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.entry-task-trigger > span:last-child {
+  flex-shrink: 0;
+  display: flex;
+  color: var(--muted);
+}
+.entry-task-menu {
+  z-index: 70;
+  width: var(--radix-select-trigger-width);
+  max-height: min(280px, var(--radix-select-content-available-height));
+  overflow: hidden;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 12px 36px rgba(10, 16, 13, 0.18);
+}
+.entry-task-option {
+  position: relative;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 34px 10px 12px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.entry-task-option[data-highlighted] {
+  background: var(--teal-soft);
+  outline: none;
+}
+.entry-task-option[data-state="checked"] {
+  font-weight: 600;
+}
+.entry-task-option > span:last-child:not(:first-child) {
+  position: absolute;
+  right: 12px;
+  display: flex;
+}
+.entry-dialog .duration-fields label {
+  white-space: nowrap;
+  min-width: 0;
+}
+.entry-dialog .form-primary {
+  font-size: 0.9rem;
+  width: 100%;
+  white-space: nowrap;
+}
+
 .duration-fields {
   display: grid;
   grid-template-columns: 1fr 1fr;

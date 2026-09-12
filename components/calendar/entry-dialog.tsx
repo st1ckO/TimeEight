@@ -1,8 +1,9 @@
 "use client";
 
+import * as Select from "@radix-ui/react-select";
 import * as Dialog from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
-import { useState } from "react";
+import { Check, ChevronDown, X } from "lucide-react";
+import { useId, useState } from "react";
 import type { Task, TimeEntry } from "@/lib/domain/types";
 
 function EntryForm({
@@ -22,6 +23,7 @@ function EntryForm({
   }): Promise<void>;
   close(): void;
 }) {
+  const taskLabelId = useId();
   const initialMinutes = Math.max(
     1,
     Math.round((entry?.durationSeconds ?? 1800) / 60),
@@ -46,20 +48,47 @@ function EntryForm({
 
   return (
     <form className="dialog-form" onSubmit={submit}>
-      <label>
-        Task
-        <select
-          value={taskId}
-          onChange={(event) => setTaskId(event.target.value)}
-        >
-          {tasks.map((task) => (
-            <option value={task.id} key={task.id}>
-              {task.name}
-              {task.archivedAt ? " (archived)" : ""}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="entry-task-field">
+        <span id={taskLabelId}>Task</span>
+        <Select.Root value={taskId} onValueChange={setTaskId}>
+          <Select.Trigger
+            className="entry-task-trigger"
+            aria-labelledby={taskLabelId}
+          >
+            <Select.Value placeholder="Choose a task" />
+            <Select.Icon>
+              <ChevronDown size={18} aria-hidden />
+            </Select.Icon>
+          </Select.Trigger>
+          <Select.Portal>
+            <Select.Content
+              className="entry-task-menu"
+              position="popper"
+              align="start"
+              sideOffset={6}
+              collisionPadding={14}
+            >
+              <Select.Viewport>
+                {tasks.map((task) => (
+                  <Select.Item
+                    className="entry-task-option"
+                    value={task.id}
+                    key={task.id}
+                  >
+                    <Select.ItemText>
+                      {task.name}
+                      {task.archivedAt ? " (archived)" : ""}
+                    </Select.ItemText>
+                    <Select.ItemIndicator>
+                      <Check size={16} aria-hidden />
+                    </Select.ItemIndicator>
+                  </Select.Item>
+                ))}
+              </Select.Viewport>
+            </Select.Content>
+          </Select.Portal>
+        </Select.Root>
+      </div>
       <label>
         Date
         <input
@@ -69,15 +98,15 @@ function EntryForm({
           required
         />
       </label>
-      <fieldset>
-        <legend>Duration</legend>
+      <fieldset aria-label="Duration">
         <div className="duration-fields">
           <label>
-            Hours
+            Duration (hours)
             <input
               type="number"
               min={0}
               max={24}
+              aria-label="Hours"
               value={hours}
               onChange={(event) => setHours(Number(event.target.value))}
             />
@@ -95,8 +124,8 @@ function EntryForm({
         </div>
       </fieldset>
       <p className="form-hint">
-        Corrections use duration only. They count toward daily totals, but not
-        the three-hour streak.
+        Added or corrected time counts toward daily totals, but not the
+        three-hour streak.
       </p>
       {error && (
         <p className="form-message" role="alert">
@@ -133,7 +162,7 @@ export function EntryDialog({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
-        <Dialog.Content className="dialog-content">
+        <Dialog.Content className="dialog-content entry-dialog">
           <div className="dialog-heading">
             <div>
               <p className="eyebrow">Time history</p>
@@ -145,7 +174,7 @@ export function EntryDialog({
               <X size={20} />
             </Dialog.Close>
           </div>
-          <Dialog.Description>
+          <Dialog.Description className="entry-description">
             Record how long you spent, without assigning a start or end time.
           </Dialog.Description>
           {open && (

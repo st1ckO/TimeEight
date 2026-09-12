@@ -1,6 +1,167 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
+test("keeps calendar entry controls balanced in both themes", async ({
+  page,
+}, testInfo) => {
+  const longName =
+    "Super Long Task Name That Would Surely Exceed The UI Boundaries";
+  await page.getByRole("button", { name: "Add task", exact: true }).click();
+  const taskDialog = page.getByRole("dialog");
+  await taskDialog.getByLabel("Task name").fill(longName);
+  await taskDialog
+    .getByRole("button", { name: "Add task", exact: true })
+    .click();
+  await page
+    .getByRole("link", { name: "Calendar", exact: true })
+    .first()
+    .click();
+  for (const width of [1500, 320]) {
+    await page.setViewportSize({ width, height: 950 });
+    for (const theme of ["light", "dark"]) {
+      await page.evaluate(
+        (theme) => (document.documentElement.dataset.theme = theme),
+        theme,
+      );
+      const add = page.getByRole("button", { name: "Add time", exact: true });
+      const summary = page.locator(".day-summary");
+      const dateBounds = await summary.locator("h2").boundingBox();
+      const totalBounds = await summary.locator(".day-total").boundingBox();
+      expect(totalBounds!.x).toBeGreaterThan(dateBounds!.x + dateBounds!.width);
+      const summaryBounds = await summary.boundingBox();
+      const toolbarBounds = await page
+        .locator(".day-history-toolbar")
+        .boundingBox();
+      expect(toolbarBounds!.y).toBeGreaterThanOrEqual(
+        summaryBounds!.y + summaryBounds!.height,
+      );
+      const sort = page.getByRole("combobox", {
+        name: /History order: Latest first/,
+      });
+      const sortBounds = await sort.boundingBox();
+      const addBounds = await add.boundingBox();
+      expect(sortBounds!.x).toBeCloseTo(toolbarBounds!.x, 0);
+      expect(addBounds!.x + addBounds!.width).toBeCloseTo(
+        toolbarBounds!.x + toolbarBounds!.width,
+        0,
+      );
+      await sort.click();
+      const sortScan = await new AxeBuilder({ page })
+        .include(".history-sort-menu")
+        .analyze();
+      expect(sortScan.violations).toEqual([]);
+      await page.screenshot({
+        path: testInfo.outputPath(`calendar-sort-${width}-${theme}.png`),
+      });
+      await page
+        .getByRole("option", { name: "Oldest first", exact: true })
+        .click();
+      await expect(
+        page.getByRole("combobox", { name: /History order: Oldest first/ }),
+      ).toBeVisible();
+      await page
+        .getByRole("combobox", { name: /History order: Oldest first/ })
+        .click();
+      await page
+        .getByRole("option", { name: "Latest first", exact: true })
+        .click();
+      expect(
+        await page
+          .locator(".day-detail")
+          .evaluate((element) => element.scrollWidth <= element.clientWidth),
+      ).toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(`calendar-summary-${width}-${theme}.png`),
+      });
+      expect(
+        await add.evaluate((element) => getComputedStyle(element).whiteSpace),
+      ).toBe("nowrap");
+      expect(
+        await add.evaluate((element) =>
+          parseFloat(getComputedStyle(element).fontSize),
+        ),
+      ).toBeGreaterThanOrEqual(14);
+      await add.click();
+      const dialog = page.getByRole("dialog", {
+        name: "Add tracked time",
+        exact: true,
+      });
+      expect(
+        await dialog
+          .getByRole("button", { name: "Add time", exact: true })
+          .evaluate((element) =>
+            parseFloat(getComputedStyle(element).fontSize),
+          ),
+      ).toBeGreaterThanOrEqual(14);
+      const heading = await dialog.locator(".dialog-heading").boundingBox();
+      const description = await dialog
+        .locator(".entry-description")
+        .boundingBox();
+      expect(description!.y - heading!.y - heading!.height).toBeCloseTo(12, 0);
+      const hoursLabel = dialog.locator(".duration-fields label").first();
+      await expect(hoursLabel).toContainText("Duration (hours)");
+      expect(
+        await hoursLabel.evaluate(
+          (element) => getComputedStyle(element).whiteSpace,
+        ),
+      ).toBe("nowrap");
+      const select = page.locator(".entry-task-trigger");
+      await select.click();
+      const menu = page.getByRole("listbox");
+      const field = await select.boundingBox();
+      const menuBounds = await menu.boundingBox();
+      const longOption = page.getByRole("option", {
+        name: longName,
+        exact: true,
+      });
+      expect(
+        await longOption.evaluate(
+          (element) => element.scrollWidth <= element.clientWidth,
+        ),
+      ).toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(`calendar-menu-${width}-${theme}.png`),
+      });
+      expect(menuBounds!.x).toBeCloseTo(field!.x, 0);
+      expect(menuBounds!.width).toBeCloseTo(field!.width, 0);
+      const menuScan = await new AxeBuilder({ page })
+        .include(".entry-task-menu")
+        .analyze();
+      expect(menuScan.violations).toEqual([]);
+      await page.keyboard.press("End");
+      await page.keyboard.press("Home");
+      await page.keyboard.press("Escape");
+      await expect(menu).toBeHidden();
+      await expect(select).toBeFocused();
+      await select.click();
+      await page
+        .getByRole("option", { name: "Watch list", exact: true })
+        .click();
+      await expect(select).toContainText("Watch list");
+      await expect(dialog).toContainText(
+        "Added or corrected time counts toward daily totals, but not the three-hour streak.",
+      );
+      await dialog.getByLabel("Hours", { exact: true }).fill("0");
+      await dialog.getByLabel("Minutes", { exact: true }).fill("15");
+      const scan = await new AxeBuilder({ page })
+        .include('[role="dialog"]')
+        .analyze();
+      expect(scan.violations).toEqual([]);
+      expect(
+        await dialog.evaluate(
+          (element) => element.scrollWidth <= element.clientWidth,
+        ),
+      ).toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(`calendar-entry-${width}-${theme}.png`),
+      });
+      await dialog
+        .getByRole("button", { name: "Add time", exact: true })
+        .click();
+      await expect(dialog).toBeHidden();
+    }
+  }
+});
 test("keeps the active card fixed and scrolls consistent timer rows", async ({
   page,
 }, testInfo) => {
@@ -256,7 +417,8 @@ test("centers the reached-limit confirmation and continues only by choice", asyn
     .click();
   await page.getByRole("button", { name: "Add time", exact: true }).click();
   const entry = page.getByRole("dialog");
-  await entry.getByRole("combobox").selectOption({ label: "Watch list" });
+  await entry.getByRole("combobox").click();
+  await page.getByRole("option", { name: "Watch list", exact: true }).click();
   await entry.getByLabel("Hours", { exact: true }).fill("2");
   await entry.getByLabel("Minutes", { exact: true }).fill("0");
   await entry.getByRole("button", { name: "Add time", exact: true }).click();
@@ -530,7 +692,8 @@ test("warns before lowering a running limit and retains tracked time", async ({
     .click();
   await page.getByRole("button", { name: "Add time", exact: true }).click();
   const entry = page.getByRole("dialog");
-  await entry.getByRole("combobox").selectOption({ label: "Watch list" });
+  await entry.getByRole("combobox").click();
+  await page.getByRole("option", { name: "Watch list", exact: true }).click();
   await entry.getByLabel("Hours", { exact: true }).fill("0");
   await entry.getByLabel("Minutes", { exact: true }).fill("10");
   await entry.getByRole("button", { name: "Add time", exact: true }).click();

@@ -41,6 +41,15 @@ describe("CalendarPage corrections", () => {
   const revertEntryCorrection = vi.fn(async () => undefined);
 
   beforeEach(() => {
+    // jsdom does not implement the browser APIs used by Radix Select.
+    Object.defineProperty(HTMLElement.prototype, "hasPointerCapture", {
+      configurable: true,
+      value: () => false,
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: vi.fn(),
+    });
     revertEntryCorrection.mockClear();
     vi.mocked(useTimeEight).mockReturnValue({
       today: "2026-09-12",
@@ -88,5 +97,36 @@ describe("CalendarPage corrections", () => {
 
     expect(revertEntryCorrection).toHaveBeenCalledOnce();
     expect(revertEntryCorrection).toHaveBeenCalledWith("timer-entry");
+  });
+
+  it("reverses timed history without moving undated manual entries or mutating source entries", async () => {
+    const user = userEvent.setup();
+    const app = vi.mocked(useTimeEight)();
+    const laterTimer = {
+      ...correctedTimer,
+      id: "later-timer",
+      startedAt: "2026-09-12T04:00:00.000Z",
+      durationSeconds: 7_200,
+    };
+    const sourceEntries = [manualEntry, correctedTimer, laterTimer];
+    vi.mocked(useTimeEight).mockReturnValue({ ...app, entries: sourceEntries });
+    const { container } = render(<CalendarPage />);
+    const durations = () =>
+      Array.from(
+        container.querySelectorAll(".history-entry > strong"),
+        (element) => element.textContent,
+      );
+    expect(durations()).toEqual(["2h 0m", "30m", "30m"]);
+    await user.click(
+      screen.getByRole("combobox", { name: /History order: Latest first/ }),
+    );
+    await user.click(screen.getByRole("option", { name: "Oldest first" }));
+    expect(durations()).toEqual(["30m", "2h 0m", "30m"]);
+    await user.click(
+      screen.getByRole("combobox", { name: /History order: Oldest first/ }),
+    );
+    await user.click(screen.getByRole("option", { name: "Latest first" }));
+    expect(durations()).toEqual(["2h 0m", "30m", "30m"]);
+    expect(sourceEntries).toEqual([manualEntry, correctedTimer, laterTimer]);
   });
 });
