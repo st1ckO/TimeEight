@@ -1,6 +1,53 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
+test("shows aligned task actions and dismisses with Escape or an outside click", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  const trigger = page.getByRole("button", {
+    name: "Actions for Morning walk",
+  });
+  const actions = page.getByRole("group", {
+    name: "Task actions for Morning walk",
+  });
+  for (const theme of ["light", "dark"]) {
+    await page.evaluate((value) => {
+      document.documentElement.dataset.theme = value;
+    }, theme);
+    await trigger.click();
+    await expect(
+      actions.getByRole("button", { name: "Move up", exact: true }),
+    ).toBeDisabled();
+    const aligned = await actions
+      .getByRole("button", { name: "Edit", exact: true })
+      .evaluate((button) => {
+        const icon = button.querySelector("svg")!.getBoundingClientRect();
+        const row = button.getBoundingClientRect();
+        return (
+          Math.abs(icon.y + icon.height / 2 - (row.y + row.height / 2)) <= 1
+        );
+      });
+    expect(aligned).toBe(true);
+    expect(
+      (await new AxeBuilder({ page }).include(".task-menu").analyze())
+        .violations,
+    ).toEqual([]);
+    await testInfo.attach(`task-actions-${theme}`, {
+      body: await actions.screenshot(),
+      contentType: "image/png",
+    });
+    await page.keyboard.press("Escape");
+    await expect(actions).toBeHidden();
+    await expect(trigger).toBeFocused();
+    await trigger.click();
+    await page
+      .getByRole("heading", { name: "Morning walk", exact: true })
+      .click();
+    await expect(actions).toBeHidden();
+  }
+});
+
 test("shares today's editor, preserves daily choices, and uses defaults tomorrow", async ({
   page,
 }) => {

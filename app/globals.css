@@ -517,29 +517,53 @@ h3 {
   right: 0;
   top: calc(100% + 6px);
   z-index: 25;
-  width: 180px;
-  padding: 6px;
+  width: 200px;
+  padding: 8px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--surface-strong);
   box-shadow: var(--shadow);
 }
 .task-menu button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   width: 100%;
-  min-height: 42px;
+  min-height: 44px;
   padding: 0 11px;
   border: 0;
   border-radius: 9px;
   background: transparent;
   color: var(--ink);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 550;
   text-align: left;
   cursor: pointer;
 }
-.task-menu button:hover {
+.task-menu button:not(:disabled):hover {
   background: var(--canvas);
 }
-.task-menu .danger {
-  color: #b33b3b;
+.task-menu button svg {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.task-menu button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.task-menu .task-menu-edit {
+  margin-top: 6px;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+}
+.task-menu .task-menu-remove {
+  margin-top: 6px;
+  background: color-mix(in srgb, #d96363 8%, var(--surface-strong));
+}
+.task-menu .task-menu-remove:not(:disabled):hover {
+  background: color-mix(in srgb, #d96363 16%, var(--surface-strong));
+  color: var(--ink);
 }
 .task-card.is-active {
   border-color: color-mix(in srgb, var(--task-color) 50%, var(--line));

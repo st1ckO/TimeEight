@@ -15,7 +15,7 @@ import {
   Play,
   Minus,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ActiveTimer, Task } from "@/lib/domain/types";
 import { formatDuration, taskDisplaySeconds } from "@/lib/domain/time";
 import { useTimeEight } from "@/components/app/app-provider";
@@ -50,6 +50,25 @@ export function SortableTaskCard({
   );
   const [editing, setEditing] = useState(false);
   const [menu, setMenu] = useState(false);
+  const menuWrapRef = useRef<HTMLDivElement>(null);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!menu) return;
+    function dismissOutside(event: PointerEvent) {
+      if (!menuWrapRef.current?.contains(event.target as Node)) setMenu(false);
+    }
+    function dismissWithEscape(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      setMenu(false);
+      menuTriggerRef.current?.focus();
+    }
+    document.addEventListener("pointerdown", dismissOutside);
+    document.addEventListener("keydown", dismissWithEscape);
+    return () => {
+      document.removeEventListener("pointerdown", dismissOutside);
+      document.removeEventListener("keydown", dismissWithEscape);
+    };
+  }, [menu]);
   const [confirmOverride, setConfirmOverride] = useState(false);
   const [confirmRemoval, setConfirmRemoval] = useState(false);
   const liveSeconds = trackedSeconds + activeSeconds;
@@ -133,8 +152,10 @@ export function SortableTaskCard({
             <Play fill="currentColor" size={20} />
           )}
         </button>
-        <div className="task-menu-wrap">
+        <div className="task-menu-wrap" ref={menuWrapRef}>
           <button
+            ref={menuTriggerRef}
+            type="button"
             className="more-button"
             aria-label={`Actions for ${task.name}`}
             aria-expanded={menu}
@@ -143,7 +164,11 @@ export function SortableTaskCard({
             <MoreHorizontal size={18} />
           </button>
           {menu && (
-            <div className="task-menu">
+            <div
+              className="task-menu"
+              role="group"
+              aria-label={`Task actions for ${task.name}`}
+            >
               <button
                 onClick={() => {
                   move(index, index - 1);
@@ -165,6 +190,7 @@ export function SortableTaskCard({
                 Move down
               </button>
               <button
+                className="task-menu-edit"
                 onClick={() => {
                   setEditing(true);
                   setMenu(false);
@@ -174,6 +200,7 @@ export function SortableTaskCard({
                 Edit
               </button>
               <button
+                className="task-menu-remove"
                 onClick={() => {
                   setMenu(false);
                   setConfirmRemoval(true);
