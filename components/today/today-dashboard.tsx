@@ -31,6 +31,7 @@ import { SortableTaskCard } from "@/components/tasks/sortable-task-card";
 import { TaskDialog } from "@/components/tasks/task-dialog";
 import { TaskLibraryDialog } from "@/components/tasks/task-library-dialog";
 import { dailyTasks } from "@/lib/domain/task-list";
+import { taskTargetForDate } from "@/lib/domain/task-targets";
 
 export function TodayDashboard() {
   const app = useTimeEight();
@@ -68,7 +69,8 @@ export function TodayDashboard() {
       const total =
         (trackedByTask.get(task.id) ?? 0) +
         elapsedSecondsForDate(timer, app.today, app.now);
-      if (total >= task.targetSeconds) void app.pauseTimer(task.id);
+      if (total >= taskTargetForDate(task, app.taskDailyTargets, app.today))
+        void app.pauseTimer(task.id);
     }
   }, [activeTasks, app, trackedByTask]);
 
@@ -236,6 +238,12 @@ export function TodayDashboard() {
         onOpenChange={setAdding}
         onSave={app.addTask}
         savedTasks={app.tasks}
+        savedTargets={Object.fromEntries(
+          app.tasks.map((task) => [
+            task.id,
+            taskTargetForDate(task, app.taskDailyTargets, app.today),
+          ]),
+        )}
         onSelect={app.addTaskToDailyList}
       />
       <TaskLibraryDialog open={libraryOpen} onOpenChange={setLibraryOpen} />

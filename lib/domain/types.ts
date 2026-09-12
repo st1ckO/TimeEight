@@ -42,6 +42,14 @@ export interface ActiveTimer {
   mutationId: string;
 }
 
+export interface TaskDailyTarget {
+  id: string;
+  userId: string;
+  taskId: string;
+  localDate: string;
+  targetSeconds: number;
+}
+
 export interface TimeEntry {
   id: string;
   userId: string;

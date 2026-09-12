@@ -6,11 +6,18 @@ import type {
   ActiveTimer,
   DailyGoalChange,
   Task,
+  TaskDailyTarget,
   TimeEntry,
 } from "@/lib/domain/types";
 import type { LocalProfile } from "./db";
 import { localDateAt } from "@/lib/domain/time";
-import { savedTaskSchema, taskListStateSchema } from "@/lib/domain/schemas";
+import {
+  savedTaskSchema,
+  taskListStateSchema,
+  taskDailyTargetSchema,
+  taskSettingsSchema,
+} from "@/lib/domain/schemas";
+import { taskTargetId } from "@/lib/domain/task-targets";
 
 function toTaskRow(payload: Record<string, unknown>) {
   const task = savedTaskSchema.parse({
@@ -58,6 +65,37 @@ async function applyMutation(
 ) {
   const payload = mutation.payload;
   switch (mutation.kind) {
+    case "task-target-snapshot":
+    case "task-target-upsert": {
+      const target = taskDailyTargetSchema.parse(payload);
+      return client.from("task_daily_targets").upsert(
+        {
+          user_id: mutation.userId,
+          task_id: target.taskId,
+          local_date: target.localDate,
+          target_seconds: target.targetSeconds,
+        },
+        {
+          onConflict: "user_id,task_id,local_date",
+          ignoreDuplicates: mutation.kind === "task-target-snapshot",
+        },
+      );
+    }
+    case "task-settings-update": {
+      const settings = taskSettingsSchema.parse(payload);
+      return client
+        .from("tasks")
+        .update({
+          name: settings.name,
+          color: settings.color,
+          goal_kind: settings.goalKind,
+          ...(settings.targetSeconds === undefined
+            ? {}
+            : { target_seconds: settings.targetSeconds }),
+        })
+        .eq("id", settings.id)
+        .eq("user_id", mutation.userId);
+    }
     case "task-upsert":
       return client.from("tasks").upsert(toTaskRow(payload));
     case "task-archive":
@@ -167,6 +205,7 @@ export interface RemoteSnapshot {
   profile: LocalProfile;
   dailyGoals: DailyGoalChange[];
   tasks: Task[];
+  taskDailyTargets: TaskDailyTarget[];
   activeTimers: ActiveTimer[];
   entries: TimeEntry[];
 }
@@ -175,25 +214,40 @@ export async function loadRemoteSnapshot(
   userId: string,
 ): Promise<RemoteSnapshot> {
   const client = createClient();
-  const [profileResult, goalsResult, tasksResult, timersResult, entriesResult] =
-    await Promise.all([
-      client.from("profiles").select("*").eq("id", userId).single(),
-      client.from("daily_goal_changes").select("*").eq("user_id", userId),
-      client.from("tasks").select("*").eq("user_id", userId),
-      client.from("active_timers").select("*").eq("user_id", userId),
-      client.from("time_entries").select("*").eq("user_id", userId),
-    ]);
+  const [
+    profileResult,
+    goalsResult,
+    tasksResult,
+    timersResult,
+    entriesResult,
+    targetsResult,
+  ] = await Promise.all([
+    client.from("profiles").select("*").eq("id", userId).single(),
+    client.from("daily_goal_changes").select("*").eq("user_id", userId),
+    client.from("tasks").select("*").eq("user_id", userId),
+    client.from("active_timers").select("*").eq("user_id", userId),
+    client.from("time_entries").select("*").eq("user_id", userId),
+    client.from("task_daily_targets").select("*").eq("user_id", userId),
+  ]);
   const error = [
     profileResult,
     goalsResult,
     tasksResult,
     timersResult,
     entriesResult,
+    targetsResult,
   ].find((result) => result.error)?.error;
   if (error || !profileResult.data)
     throw new Error(error?.message ?? "Profile was not found");
   const profileRow = profileResult.data;
   return {
+    taskDailyTargets: (targetsResult.data ?? []).map((row) => ({
+      id: taskTargetId(row.task_id, row.local_date),
+      userId: row.user_id,
+      taskId: row.task_id,
+      localDate: row.local_date,
+      targetSeconds: row.target_seconds,
+    })),
     profile: {
       id: profileRow.id,
       displayName: profileRow.display_name,

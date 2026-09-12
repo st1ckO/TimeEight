@@ -784,6 +784,65 @@ h3 {
   display: grid;
   gap: 18px;
 }
+.task-target-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 28px;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.75rem;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+.allotment-duration {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.saved-task-settings summary {
+  display: list-item;
+  min-height: 44px;
+  padding: 12px 0;
+  cursor: pointer;
+  font-weight: 650;
+}
+.today-allotment-fields .form-hint {
+  font-weight: 500;
+}
+.today-allotment-fields {
+  display: grid;
+  gap: 12px;
+}
+.allotment-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.dialog-form .allotment-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.dialog-form .allotment-check input {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--teal);
+}
+.saved-allotment-input {
+  flex-basis: 100%;
+}
 .task-source-options {
   display: flex;
   gap: 6px;

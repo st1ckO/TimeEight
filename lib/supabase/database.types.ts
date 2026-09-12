@@ -88,6 +88,22 @@ export interface Database {
         };
         Relationships: [];
       };
+      task_daily_targets: {
+        Row: {
+          user_id: string;
+          task_id: string;
+          local_date: string;
+          target_seconds: number;
+        };
+        Insert: {
+          user_id: string;
+          task_id: string;
+          local_date: string;
+          target_seconds: number;
+        };
+        Update: { target_seconds?: number };
+        Relationships: [];
+      };
       active_timers: {
         Row: {
           id: string;

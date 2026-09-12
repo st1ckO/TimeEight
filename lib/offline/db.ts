@@ -4,6 +4,7 @@ import type {
   DailyGoalChange,
   Profile,
   Task,
+  TaskDailyTarget,
   TimeEntry,
 } from "@/lib/domain/types";
 
@@ -14,6 +15,9 @@ export interface PendingMutation {
     | "task-upsert"
     | "task-archive"
     | "task-list-state"
+    | "task-target-upsert"
+    | "task-target-snapshot"
+    | "task-settings-update"
     | "timer-start"
     | "timer-stop"
     | "entry-upsert"
@@ -32,6 +36,7 @@ export class TimeEightDatabase extends Dexie {
   profiles!: EntityTable<LocalProfile, "id">;
   dailyGoals!: EntityTable<DailyGoalChange, "id">;
   tasks!: EntityTable<Task, "id">;
+  taskDailyTargets!: EntityTable<TaskDailyTarget, "id">;
   activeTimers!: EntityTable<ActiveTimer, "id">;
   timeEntries!: EntityTable<TimeEntry, "id">;
   pendingMutations!: EntityTable<PendingMutation, "id">;
@@ -56,6 +61,9 @@ export class TimeEightDatabase extends Dexie {
             task.onDailyList = !task.archivedAt;
           });
       });
+    this.version(3).stores({
+      taskDailyTargets: "&id, userId, [userId+localDate], taskId",
+    });
   }
 }
 
@@ -76,6 +84,7 @@ export async function clearLocalUser(userId: string): Promise<void> {
       db.profiles,
       db.dailyGoals,
       db.tasks,
+      db.taskDailyTargets,
       db.activeTimers,
       db.timeEntries,
       db.pendingMutations,
@@ -85,6 +94,7 @@ export async function clearLocalUser(userId: string): Promise<void> {
         db.profiles.delete(userId),
         db.dailyGoals.where("userId").equals(userId).delete(),
         db.tasks.where("userId").equals(userId).delete(),
+        db.taskDailyTargets.where("userId").equals(userId).delete(),
         db.activeTimers.where("userId").equals(userId).delete(),
         db.timeEntries.where("userId").equals(userId).delete(),
         db.pendingMutations.where("userId").equals(userId).delete(),

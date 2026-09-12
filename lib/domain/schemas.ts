@@ -33,6 +33,28 @@ export const taskSchema = z.object({
   targetSeconds: z.number().int().min(60).max(86_400),
 });
 
+export const taskDailyTargetSchema = z.object({
+  taskId: z.string().uuid(),
+  localDate: z
+    .string()
+    .regex(isoDate)
+    .refine((date) => {
+      const parsed = new Date(`${date}T00:00:00Z`);
+      return (
+        Number.isFinite(parsed.getTime()) &&
+        parsed.toISOString().slice(0, 10) === date
+      );
+    }, "Choose a valid local date"),
+  targetSeconds: z.number().int().min(60).max(86_400),
+});
+
+export const taskSettingsSchema = taskSchema
+  .omit({ targetSeconds: true })
+  .extend({
+    id: z.string().uuid(),
+    targetSeconds: z.number().int().min(60).max(86_400).optional(),
+  });
+
 export const taskListStateSchema = z
   .object({
     id: z.string().uuid(),
@@ -71,6 +93,9 @@ export const syncMutationSchema = z.object({
     "task-upsert",
     "task-archive",
     "task-list-state",
+    "task-target-upsert",
+    "task-target-snapshot",
+    "task-settings-update",
     "timer-start",
     "timer-stop",
     "entry-upsert",
@@ -91,6 +116,7 @@ export const exportSchema = z.object({
   }),
   dailyGoals: z.array(z.unknown()),
   tasks: z.array(z.unknown()),
+  taskDailyTargets: z.array(z.unknown()).optional(),
   entries: z.array(z.unknown()),
 });
 

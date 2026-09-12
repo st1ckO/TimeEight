@@ -1,6 +1,173 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
+test("shares today's editor, preserves daily choices, and uses defaults tomorrow", async ({
+  page,
+}) => {
+  const target = page.getByRole("button", {
+    name: "Edit today’s allotment for Morning walk",
+  });
+  await target.click();
+  let editor = page.getByRole("dialog", { name: "Edit task", exact: true });
+  await editor.getByLabel("Hours", { exact: true }).fill("0");
+  await editor.getByLabel("Minutes", { exact: true }).fill("20");
+  await editor.getByRole("button", { name: "Save changes" }).click();
+  await expect(target).toHaveText("of 20m");
+  await page.getByRole("button", { name: "Actions for Morning walk" }).click();
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  editor = page.getByRole("dialog", { name: "Edit task", exact: true });
+  await expect(editor.getByLabel("Minutes", { exact: true })).toHaveValue("20");
+  await expect(editor.getByLabel("Use as task default too")).not.toBeChecked();
+  await editor.getByRole("button", { name: "Reset to default" }).click();
+  await expect(editor.getByLabel("Hours", { exact: true })).toHaveValue("1");
+  await editor.getByLabel("Hours", { exact: true }).fill("0");
+  await editor.getByLabel("Minutes", { exact: true }).fill("20");
+  await editor.getByLabel("Use as task default too").check();
+  await editor.getByRole("button", { name: "Save changes" }).click();
+  await page.getByRole("button", { name: "Task list", exact: true }).click();
+  const library = page.getByRole("dialog", { name: "Task list", exact: true });
+  await library
+    .getByRole("button", { name: "Edit saved task Morning walk" })
+    .click();
+  editor = page.getByRole("dialog", { name: "Edit task", exact: true });
+  await expect(
+    editor.getByLabel("Default daily target in minutes"),
+  ).toHaveValue("20");
+  await editor.getByLabel("Default daily target in minutes").fill("45");
+  await editor.getByRole("button", { name: "Save changes" }).click();
+  await library.getByRole("button", { name: "Close task list" }).click();
+  await expect(target).toHaveText("of 20m");
+  await page.reload();
+  await expect(target).toHaveText("of 20m");
+  await page.clock.install();
+  await page.clock.setFixedTime(new Date(Date.now() + 24 * 60 * 60 * 1000));
+  await expect(target).toHaveText("of 45m");
+});
+
+test("warns before lowering a running limit and retains tracked time", async ({
+  page,
+}) => {
+  await page
+    .getByRole("link", { name: "Calendar", exact: true })
+    .first()
+    .click();
+  await page.getByRole("button", { name: "Add time", exact: true }).click();
+  const entry = page.getByRole("dialog");
+  await entry.getByRole("combobox").selectOption({ label: "Watch list" });
+  await entry.getByLabel("Hours", { exact: true }).fill("0");
+  await entry.getByLabel("Minutes", { exact: true }).fill("10");
+  await entry.getByRole("button", { name: "Add time", exact: true }).click();
+  await page.getByRole("link", { name: "Today", exact: true }).first().click();
+  await page.getByRole("button", { name: "Start Watch list" }).click();
+  await page.waitForTimeout(1100);
+  await page
+    .getByRole("button", { name: "Edit today’s allotment for Watch list" })
+    .click();
+  const editor = page.getByRole("dialog", { name: "Edit task", exact: true });
+  await editor.getByLabel("Hours", { exact: true }).fill("0");
+  await editor.getByLabel("Minutes", { exact: true }).fill("5");
+  await editor.getByRole("button", { name: "Save changes" }).click();
+  await expect(editor.getByRole("alert")).toContainText("Confirm stopping");
+  await editor
+    .getByRole("checkbox", { name: /Stop the running timer/ })
+    .check();
+  await editor.getByRole("button", { name: "Save changes" }).click();
+  await expect(
+    page.getByRole("button", { name: "Pause Watch list" }),
+  ).toBeHidden();
+  await expect(
+    page.getByRole("button", { name: "Continue Watch list" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Edit today’s allotment for Watch list" })
+    .click();
+  await editor.getByLabel("Minutes", { exact: true }).fill("30");
+  await editor.getByRole("button", { name: "Save changes" }).click();
+  await expect(
+    page.getByRole("button", { name: "Start Watch list" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Pause Watch list" }),
+  ).toBeHidden();
+  await page
+    .getByRole("link", { name: "Calendar", exact: true })
+    .first()
+    .click();
+  const history = page
+    .locator(".history-entry")
+    .filter({ has: page.getByRole("heading", { name: "Watch list" }) });
+  await expect(history).toHaveCount(2);
+  await expect(history.filter({ hasText: "Manual correction" })).toContainText(
+    "10m",
+  );
+  await expect(history.filter({ hasText: "Timer" })).toContainText(
+    "Allotment: 30m",
+  );
+});
+
+test("can adjust a reused task and fits today's editor at 320px in both themes", async ({
+  page,
+}, testInfo) => {
+  await page.getByRole("button", { name: "Actions for Morning walk" }).click();
+  await page.getByRole("button", { name: "Remove", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Remove task" })
+    .click();
+  await page.getByRole("button", { name: "Add task", exact: true }).click();
+  const picker = page.getByRole("dialog");
+  await picker.getByRole("button", { name: "From task list" }).click();
+  await picker
+    .getByRole("button", { name: "Adjust allotment for Morning walk" })
+    .click();
+  await picker
+    .getByLabel("Today’s allotment in minutes", { exact: true })
+    .fill("20");
+  await picker
+    .getByRole("button", { name: "Add Morning walk to daily list" })
+    .click();
+  const target = page.getByRole("button", {
+    name: "Edit today’s allotment for Morning walk",
+  });
+  await expect(target).toHaveText("of 20m");
+  await page.setViewportSize({ width: 320, height: 800 });
+  for (const theme of ["light", "dark"]) {
+    await page.evaluate((value) => {
+      document.documentElement.dataset.theme = value;
+    }, theme);
+    await target.click();
+    const editor = page.getByRole("dialog", { name: "Edit task", exact: true });
+    await expect(editor.getByLabel("Minutes", { exact: true })).toHaveValue(
+      "20",
+    );
+    const checkboxCenterOffset = await editor
+      .locator(".allotment-check")
+      .first()
+      .evaluate((label) => {
+        const checkbox = label.querySelector("input")!.getBoundingClientRect();
+        const text = label.querySelector("span")!.getBoundingClientRect();
+        return Math.abs(
+          checkbox.y + checkbox.height / 2 - (text.y + text.height / 2),
+        );
+      });
+    expect(checkboxCenterOffset).toBeLessThanOrEqual(1);
+    expect(
+      await editor.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      ),
+    ).toBe(true);
+    expect(
+      (await new AxeBuilder({ page }).include(".task-dialog").analyze())
+        .violations,
+    ).toEqual([]);
+    await testInfo.attach(`today-editor-320-${theme}`, {
+      body: await editor.screenshot(),
+      contentType: "image/png",
+    });
+    await editor.getByRole("button", { name: "Close", exact: true }).click();
+  }
+});
+
 test("fits the saved list and picker at 320px in both themes", async ({
   page,
 }, testInfo) => {

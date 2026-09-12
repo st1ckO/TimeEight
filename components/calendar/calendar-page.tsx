@@ -1,4 +1,5 @@
 "use client";
+import { taskTargetForDate } from "@/lib/domain/task-targets";
 
 import {
   ChevronLeft,
@@ -187,6 +188,18 @@ export function CalendarPage() {
                         ? " · corrected"
                         : ""}
                     </p>
+                    {tasksById.get(entry.taskId) && (
+                      <p>
+                        Allotment:{" "}
+                        {formatDuration(
+                          taskTargetForDate(
+                            tasksById.get(entry.taskId)!,
+                            app.taskDailyTargets ?? [],
+                            entry.localDate,
+                          ),
+                        )}
+                      </p>
+                    )}
                   </div>
                   <strong>{formatDuration(entry.durationSeconds)}</strong>
                   <div className="history-entry-actions">
