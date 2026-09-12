@@ -771,6 +771,63 @@ h3 {
   display: grid;
   gap: 18px;
 }
+.task-dialog .dialog-heading {
+  margin-bottom: 10px;
+}
+.task-description {
+  margin: 0 0 24px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+.task-dialog .form-primary {
+  width: 100%;
+  font-size: 1rem;
+}
+.task-intention {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--canvas);
+}
+.task-intention label {
+  position: relative;
+  cursor: pointer;
+}
+.task-intention input[type="radio"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+}
+.task-intention span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--muted);
+}
+.task-intention input:checked + span {
+  border-color: var(--line);
+  background: var(--surface-strong);
+  color: var(--ink);
+  box-shadow: 0 2px 5px rgba(20, 34, 27, 0.06);
+}
+.task-intention label:hover span {
+  color: var(--ink);
+}
+.task-intention input:focus-visible + span {
+  outline: 3px solid var(--teal);
+  outline-offset: 2px;
+}
 .dialog-form label,
 .dialog-form fieldset {
   display: grid;

@@ -137,3 +137,49 @@ test("has no serious automated accessibility violations", async ({ page }) => {
     ),
   ).toEqual([]);
 });
+
+test("adds a task with a compact keyboard intention control and expanded colors", async ({
+  page,
+}, testInfo) => {
+  await page.getByRole("button", { name: "Add task", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("Task name")).toBeFocused();
+  const description = await dialog.locator(".task-description").boundingBox();
+  const heading = await dialog.locator(".dialog-heading").boundingBox();
+  const form = await dialog.locator("form").boundingBox();
+  const intention = await dialog.locator(".task-intention").boundingBox();
+  expect(description!.y - (heading!.y + heading!.height)).toBeCloseTo(10, 0);
+  expect(form!.y - (description!.y + description!.height)).toBeCloseTo(24, 0);
+  expect(intention!.height).toBeLessThanOrEqual(52);
+  const submitButton = dialog.getByRole("button", {
+    name: "Add task",
+    exact: true,
+  });
+  await expect(submitButton).toHaveCSS("font-size", "16px");
+  const submitBounds = await submitButton.boundingBox();
+  expect(submitBounds!.width).toBeCloseTo(form!.width, 0);
+  await dialog.getByRole("radio", { name: "Build time" }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(dialog.getByRole("radio", { name: "Limit time" })).toBeChecked();
+  await expect(
+    dialog.getByRole("button", { name: /^Use .* color$/ }),
+  ).toHaveCount(12);
+  await dialog.getByRole("button", { name: "Use cyan color" }).click();
+  await expect(
+    dialog.getByRole("button", { name: "Use cyan color" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  const report = await new AxeBuilder({ page })
+    .include(".task-dialog")
+    .analyze();
+  expect(report.violations).toEqual([]);
+  await testInfo.attach("add-task-dialog", {
+    body: await dialog.screenshot(),
+    contentType: "image/png",
+  });
+  await dialog.getByLabel("Task name").fill("Evening reading");
+  await dialog.getByRole("button", { name: "Add task", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect(
+    page.getByRole("heading", { name: "Evening reading" }),
+  ).toBeVisible();
+});
