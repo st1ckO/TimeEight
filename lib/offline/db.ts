@@ -13,6 +13,7 @@ export interface PendingMutation {
   kind:
     | "task-upsert"
     | "task-archive"
+    | "task-list-state"
     | "timer-start"
     | "timer-stop"
     | "entry-upsert"
@@ -45,6 +46,16 @@ export class TimeEightDatabase extends Dexie {
       timeEntries: "&id, userId, [userId+localDate], taskId, mutationId",
       pendingMutations: "&id, userId, createdAt",
     });
+    this.version(2)
+      .stores({})
+      .upgrade(async (transaction) => {
+        await transaction
+          .table("tasks")
+          .toCollection()
+          .modify((task) => {
+            task.onDailyList = !task.archivedAt;
+          });
+      });
   }
 }
 

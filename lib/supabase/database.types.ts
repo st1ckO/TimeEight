@@ -62,6 +62,7 @@ export interface Database {
           target_seconds: number;
           sort_order: number;
           archived_at: string | null;
+          on_daily_list: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -74,6 +75,7 @@ export interface Database {
           target_seconds: number;
           sort_order: number;
           archived_at?: string | null;
+          on_daily_list?: boolean;
         };
         Update: {
           name?: string;
@@ -82,6 +84,7 @@ export interface Database {
           target_seconds?: number;
           sort_order?: number;
           archived_at?: string | null;
+          on_daily_list?: boolean;
         };
         Relationships: [];
       };

@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { useState } from "react";
 import type { GoalKind, Task } from "@/lib/domain/types";
 import { taskSchema } from "@/lib/domain/schemas";
+import { SavedTaskChoices } from "./saved-task-choices";
 
 const colors = [
   { name: "Teal", value: "#197c67" },
@@ -44,9 +45,11 @@ function TaskForm({
   );
   const [color, setColor] = useState(task?.color ?? colors[0]!.value);
   const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (pending) return;
     const parsed = taskSchema.safeParse({
       name,
       goalKind,
@@ -57,8 +60,16 @@ function TaskForm({
       return setError(
         "Add a name and choose a target between 1 minute and 24 hours.",
       );
-    await onSave(parsed.data);
-    close();
+    setPending(true);
+    setError(null);
+    try {
+      await onSave(parsed.data);
+      close();
+    } catch {
+      setError("Couldn't save this task. Please try again.");
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -128,8 +139,8 @@ function TaskForm({
           {error}
         </p>
       )}
-      <button className="primary-button form-primary">
-        {task ? "Save changes" : "Add task"}
+      <button className="primary-button form-primary" disabled={pending}>
+        {pending ? "Saving…" : task ? "Save changes" : "Add task"}
       </button>
     </form>
   );
@@ -140,10 +151,14 @@ export function TaskDialog({
   onOpenChange,
   task,
   onSave,
+  savedTasks,
+  onSelect,
 }: {
   open: boolean;
   onOpenChange(open: boolean): void;
   task?: Task;
+  savedTasks?: Task[];
+  onSelect?(id: string): Promise<void>;
   onSave(input: {
     name: string;
     goalKind: GoalKind;
@@ -151,8 +166,16 @@ export function TaskDialog({
     color: string;
   }): Promise<void>;
 }) {
+  const [source, setSource] = useState<"new" | "saved">("new");
+  const canChoose = !task && savedTasks !== undefined && onSelect !== undefined;
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) setSource("new");
+        onOpenChange(next);
+      }}
+    >
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
         <Dialog.Content
@@ -175,12 +198,51 @@ export function TaskDialog({
             Choose whether this time is something to build up or gently limit.
           </Dialog.Description>
           {open && (
-            <TaskForm
-              key={task?.id ?? "new"}
-              task={task}
-              onSave={onSave}
-              close={() => onOpenChange(false)}
-            />
+            <div className="task-dialog-body">
+              {canChoose && (
+                <div
+                  className="task-source-options"
+                  role="group"
+                  aria-label="Task source"
+                >
+                  <button
+                    type="button"
+                    aria-pressed={source === "new"}
+                    onClick={() => setSource("new")}
+                  >
+                    New task
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={source === "saved"}
+                    onClick={() => setSource("saved")}
+                  >
+                    From task list
+                  </button>
+                </div>
+              )}
+              <div hidden={canChoose && source === "saved"}>
+                <TaskForm
+                  key={task?.id ?? "new"}
+                  task={task}
+                  onSave={onSave}
+                  close={() => {
+                    setSource("new");
+                    onOpenChange(false);
+                  }}
+                />
+              </div>
+              {canChoose && source === "saved" && (
+                <SavedTaskChoices
+                  tasks={savedTasks}
+                  onSelect={async (id) => {
+                    await onSelect(id);
+                    setSource("new");
+                    onOpenChange(false);
+                  }}
+                />
+              )}
+            </div>
           )}
         </Dialog.Content>
       </Dialog.Portal>

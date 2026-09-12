@@ -13,13 +13,14 @@ import {
   Pause,
   Pencil,
   Play,
-  Trash2,
+  Minus,
 } from "lucide-react";
 import { useState } from "react";
 import type { ActiveTimer, Task } from "@/lib/domain/types";
 import { formatDuration, taskDisplaySeconds } from "@/lib/domain/time";
 import { useTimeEight } from "@/components/app/app-provider";
 import { TaskDialog } from "./task-dialog";
+import { ConfirmTaskAction } from "./confirm-task-action";
 
 export function SortableTaskCard({
   task,
@@ -38,10 +39,12 @@ export function SortableTaskCard({
   count: number;
   move(from: number, to: number): void;
 }) {
-  const { startTimer, pauseTimer, updateTask, archiveTask } = useTimeEight();
+  const { startTimer, pauseTimer, updateTask, removeTaskFromDailyList } =
+    useTimeEight();
   const [editing, setEditing] = useState(false);
   const [menu, setMenu] = useState(false);
   const [confirmOverride, setConfirmOverride] = useState(false);
+  const [confirmRemoval, setConfirmRemoval] = useState(false);
   const liveSeconds = trackedSeconds + activeSeconds;
   const displaySeconds = taskDisplaySeconds(
     task.goalKind,
@@ -158,9 +161,14 @@ export function SortableTaskCard({
                 <Pencil size={16} />
                 Edit
               </button>
-              <button onClick={() => void archiveTask(task.id)}>
-                <Trash2 size={16} />
-                Archive
+              <button
+                onClick={() => {
+                  setMenu(false);
+                  setConfirmRemoval(true);
+                }}
+              >
+                <Minus size={16} />
+                Remove
               </button>
             </div>
           )}
@@ -171,6 +179,17 @@ export function SortableTaskCard({
         onOpenChange={setEditing}
         task={task}
         onSave={(input) => updateTask(task.id, input)}
+      />
+      <ConfirmTaskAction
+        open={confirmRemoval}
+        onOpenChange={setConfirmRemoval}
+        title={`Remove ${task.name} from daily list?`}
+        description="The task stays in your saved Task list and its tracked history is kept. Any running timer will stop and its elapsed time will be saved. This choice carries forward until you add the task again."
+        confirmLabel="Remove task"
+        onConfirm={async () => {
+          await removeTaskFromDailyList(task.id);
+          document.getElementById("add-daily-task")?.focus();
+        }}
       />
       {confirmOverride && (
         <div className="dialog-overlay">

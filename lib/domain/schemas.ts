@@ -33,6 +33,24 @@ export const taskSchema = z.object({
   targetSeconds: z.number().int().min(60).max(86_400),
 });
 
+export const taskListStateSchema = z
+  .object({
+    id: z.string().uuid(),
+    onDailyList: z.boolean(),
+    archivedAt: z.string().datetime({ offset: true }).nullable(),
+  })
+  .refine((task) => !task.archivedAt || !task.onDailyList, {
+    message: "Archived tasks cannot be on the daily list",
+  });
+
+export const savedTaskSchema = taskSchema.extend({
+  id: z.string().uuid(),
+  userId: z.string().uuid(),
+  sortOrder: z.number().int().nonnegative(),
+  archivedAt: z.string().datetime({ offset: true }).nullable(),
+  onDailyList: z.boolean(),
+});
+
 export const timerStartSchema = z.object({
   taskId: z.string().uuid(),
   startedAt: z.string().datetime({ offset: true }),
@@ -52,6 +70,7 @@ export const syncMutationSchema = z.object({
   kind: z.enum([
     "task-upsert",
     "task-archive",
+    "task-list-state",
     "timer-start",
     "timer-stop",
     "entry-upsert",

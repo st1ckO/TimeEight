@@ -26,6 +26,7 @@ export interface Task {
   targetSeconds: number;
   sortOrder: number;
   archivedAt: string | null;
+  onDailyList: boolean;
 }
 
 export interface ActiveTimer {

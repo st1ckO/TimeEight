@@ -29,6 +29,15 @@ import {
   splitDurationAcrossLocalDates,
 } from "@/lib/domain/time";
 import { aggregateStreakEntries, calculateStreak } from "@/lib/domain/streak";
+import { taskSchema, taskListStateSchema } from "@/lib/domain/schemas";
+import {
+  archiveSavedTask,
+  dailyTasks,
+  nextTaskOrder,
+  normalizeTask,
+  removeFromDailyList,
+  restoreSavedTask,
+} from "@/lib/domain/task-list";
 import {
   clearLocalUser,
   getLocalDatabase,
@@ -82,6 +91,9 @@ interface AppContextValue {
   addTask(input: AddTaskInput): Promise<void>;
   updateTask(id: string, input: AddTaskInput): Promise<void>;
   archiveTask(id: string): Promise<void>;
+  restoreTask(id: string): Promise<void>;
+  addTaskToDailyList(id: string): Promise<void>;
+  removeTaskFromDailyList(id: string): Promise<void>;
   reorderTasks(ids: string[]): Promise<void>;
   startTimer(taskId: string, limitOverride?: boolean): Promise<void>;
   pauseTimer(taskId: string, recovered?: boolean): Promise<void>;
@@ -114,6 +126,7 @@ function seedTasks(userId: string): Task[] {
       targetSeconds: 3600,
       sortOrder: 0,
       archivedAt: null,
+      onDailyList: true,
     },
     {
       id: newId(),
@@ -124,6 +137,7 @@ function seedTasks(userId: string): Task[] {
       targetSeconds: 10_800,
       sortOrder: 1,
       archivedAt: null,
+      onDailyList: true,
     },
     {
       id: newId(),
@@ -134,6 +148,7 @@ function seedTasks(userId: string): Task[] {
       targetSeconds: 3600,
       sortOrder: 2,
       archivedAt: null,
+      onDailyList: true,
     },
   ];
 }
@@ -232,6 +247,7 @@ export function AppProvider({
         ...initialProfile,
         accountStart: initialAccountStart,
       };
+      if (cancelled) return;
       let storedGoals = await db.dailyGoals
         .where("userId")
         .equals(userId)
@@ -245,6 +261,7 @@ export function AppProvider({
         .where("userId")
         .equals(userId)
         .toArray();
+      if (cancelled) return;
       const onlineAccount =
         isSupabaseConfigured() && userId !== "local-demo" && navigator.onLine;
       let remoteBefore: Awaited<ReturnType<typeof loadRemoteSnapshot>> | null =
@@ -257,6 +274,8 @@ export function AppProvider({
           setSyncState("error");
         }
       }
+
+      if (cancelled) return;
 
       const recoveredEntries: TimeEntry[] = storedTimers.flatMap((timer) => {
         if (timer.checkpointSeconds <= 0) return [];
@@ -322,7 +341,9 @@ export function AppProvider({
         storedEntries = [...storedEntries, ...recoveredEntries];
       }
 
-      let remoteAfter = remoteBefore;
+      // Never replace unsynced local edits with a stale server snapshot.
+      let remoteAfter: Awaited<ReturnType<typeof loadRemoteSnapshot>> | null =
+        null;
       if (onlineAccount) {
         const result = await syncPendingMutations(userId);
         setSyncState(result.error ? "error" : "synced");
@@ -341,6 +362,7 @@ export function AppProvider({
         storedTasks = remoteAfter.tasks;
         storedEntries = remoteAfter.entries;
       }
+      if (cancelled) return;
       if (storedGoals.length === 0) {
         const goal = {
           id: newId(),
@@ -365,16 +387,26 @@ export function AppProvider({
           );
       }
 
-      await db.profiles.put(storedProfile);
-      await db.dailyGoals.where("userId").equals(userId).delete();
-      await db.tasks.where("userId").equals(userId).delete();
-      await db.activeTimers.where("userId").equals(userId).delete();
-      await db.timeEntries.where("userId").equals(userId).delete();
-      if (storedGoals.length > 0) await db.dailyGoals.bulkPut(storedGoals);
-      if (storedTasks.length > 0) await db.tasks.bulkPut(storedTasks);
-      if (remoteAfter?.activeTimers.length)
-        await db.activeTimers.bulkPut(remoteAfter.activeTimers);
-      if (storedEntries.length > 0) await db.timeEntries.bulkPut(storedEntries);
+      storedTasks = storedTasks.map(normalizeTask);
+      if (cancelled) return;
+      // Readers must not observe an empty list between delete and replacement.
+      await db.transaction(
+        "rw",
+        [db.profiles, db.dailyGoals, db.tasks, db.activeTimers, db.timeEntries],
+        async () => {
+          await db.profiles.put(storedProfile);
+          await db.dailyGoals.where("userId").equals(userId).delete();
+          await db.tasks.where("userId").equals(userId).delete();
+          await db.activeTimers.where("userId").equals(userId).delete();
+          await db.timeEntries.where("userId").equals(userId).delete();
+          if (storedGoals.length > 0) await db.dailyGoals.bulkPut(storedGoals);
+          if (storedTasks.length > 0) await db.tasks.bulkPut(storedTasks);
+          if (remoteAfter?.activeTimers.length)
+            await db.activeTimers.bulkPut(remoteAfter.activeTimers);
+          if (storedEntries.length > 0)
+            await db.timeEntries.bulkPut(storedEntries);
+        },
+      );
       if (cancelled) return;
       setProfile(storedProfile);
       setDailyGoals(storedGoals);
@@ -430,6 +462,9 @@ export function AppProvider({
         correctionOriginalDurationSeconds: null,
         mutationId: newId(),
       }));
+      activeRef.current = activeRef.current.filter(
+        (item) => item.id !== timer.id,
+      );
       setActiveTimers((current) =>
         current.filter((item) => item.id !== timer.id),
       );
@@ -510,15 +545,17 @@ export function AppProvider({
   }, [activeTimers.length, userId]);
 
   async function addTask(input: AddTaskInput) {
+    const parsed = taskSchema.parse({
+      ...input,
+      color: input.color ?? palette[tasks.length % palette.length]!,
+    });
     const task: Task = {
       id: newId(),
       userId,
-      name: input.name.trim(),
-      color: input.color ?? palette[tasks.length % palette.length]!,
-      goalKind: input.goalKind,
-      targetSeconds: input.targetSeconds,
-      sortOrder: tasks.filter((item) => !item.archivedAt).length,
+      ...parsed,
+      sortOrder: nextTaskOrder(tasks),
       archivedAt: null,
+      onDailyList: true,
     };
     setTasks((current) => [...current, task]);
     await getLocalDatabase()?.tasks.put(task);
@@ -531,11 +568,13 @@ export function AppProvider({
   async function updateTask(id: string, input: AddTaskInput) {
     const existing = tasks.find((task) => task.id === id);
     if (!existing) return;
+    const parsed = taskSchema.parse({
+      ...input,
+      color: input.color ?? existing.color,
+    });
     const next = {
       ...existing,
-      ...input,
-      name: input.name.trim(),
-      color: input.color ?? existing.color,
+      ...parsed,
     };
     setTasks((current) =>
       current.map((task) => (task.id === id ? next : task)),
@@ -547,18 +586,49 @@ export function AppProvider({
     );
   }
 
-  async function archiveTask(id: string) {
-    if (activeRef.current.some((timer) => timer.taskId === id))
-      await pauseTimer(id);
-    const archivedAt = new Date().toISOString();
+  async function saveTaskListState(task: Task) {
+    const state = taskListStateSchema.parse(task);
+    await getLocalDatabase()?.tasks.put(task);
     setTasks((current) =>
-      current.map((task) => (task.id === id ? { ...task, archivedAt } : task)),
+      current.map((item) => (item.id === task.id ? task : item)),
     );
-    await getLocalDatabase()?.tasks.update(id, { archivedAt });
-    await persistMutation("task-archive", { id, archivedAt });
+    await persistMutation("task-list-state", state);
+  }
+
+  async function archiveTask(id: string) {
+    const task = tasks.find((item) => item.id === id);
+    if (!task || task.archivedAt) return;
+    await pauseTimer(id);
+    await saveTaskListState(archiveSavedTask(task, new Date().toISOString()));
+  }
+
+  async function restoreTask(id: string) {
+    const task = tasks.find((item) => item.id === id);
+    if (!task?.archivedAt) return;
+    await saveTaskListState(restoreSavedTask(task));
+  }
+
+  async function removeTaskFromDailyList(id: string) {
+    const task = tasks.find((item) => item.id === id);
+    if (!task || !task.onDailyList) return;
+    await pauseTimer(id);
+    await saveTaskListState(removeFromDailyList(task));
+  }
+
+  async function addTaskToDailyList(id: string) {
+    const task = tasks.find((item) => item.id === id);
+    if (!task || task.archivedAt || task.onDailyList) return;
+    await saveTaskListState({ ...task, onDailyList: true });
   }
 
   async function reorderTasks(ids: string[]) {
+    const selectedIds = dailyTasks(tasks).map((task) => task.id);
+    if (
+      ids.length !== selectedIds.length ||
+      new Set(ids).size !== ids.length ||
+      ids.some((id) => !selectedIds.includes(id))
+    )
+      return;
     const positions = new Map(ids.map((id, index) => [id, index]));
     const next = tasks
       .map((task) =>
@@ -577,6 +647,8 @@ export function AppProvider({
   }
 
   async function startTimer(taskId: string, limitOverride = false) {
+    const task = tasks.find((item) => item.id === taskId);
+    if (!task || task.archivedAt || !task.onDailyList) return;
     if (activeRef.current.some((timer) => timer.taskId === taskId)) return;
     const startedAt = new Date().toISOString();
     const timer: ActiveTimer = {
@@ -591,6 +663,7 @@ export function AppProvider({
       limitOverride,
       mutationId: newId(),
     };
+    activeRef.current = [...activeRef.current, timer];
     setActiveTimers((current) => [...current, timer]);
     await getLocalDatabase()?.activeTimers.put(timer);
     await persistMutation(
@@ -739,6 +812,9 @@ export function AppProvider({
     addTask,
     updateTask,
     archiveTask,
+    restoreTask,
+    addTaskToDailyList,
+    removeTaskFromDailyList,
     reorderTasks,
     startTimer,
     pauseTimer,
