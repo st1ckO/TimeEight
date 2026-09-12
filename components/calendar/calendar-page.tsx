@@ -77,8 +77,7 @@ export function CalendarPage() {
           <p className="eyebrow">Your time, in context</p>
           <h1>Calendar</h1>
           <p>
-            Each ring compares tracked time with the goal that applied on that
-            date.
+            Each ring shows your tracked time toward the eight-hour daily goal.
           </p>
         </div>
       </header>
