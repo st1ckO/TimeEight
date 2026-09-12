@@ -277,7 +277,9 @@ h3 {
 }
 .today-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr);
+  gap: 20px;
+  align-items: stretch;
 }
 .daily-card {
   border: 1px solid var(--line);
@@ -286,11 +288,152 @@ h3 {
   box-shadow: var(--shadow);
 }
 .daily-card {
-  min-height: 282px;
-  padding: clamp(24px, 4vw, 42px);
-  display: flex;
+  min-height: 212px;
+  padding: 28px 32px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: clamp(26px, 5vw, 54px);
+  gap: 28px;
+}
+.daily-summary {
+  min-width: 0;
+}
+.daily-summary .muted {
+  margin-bottom: 0;
+  max-width: none;
+}
+.daily-card .status-badges {
+  position: relative;
+}
+.daily-card .status-badge-wrap {
+  position: static;
+}
+.daily-card .status-tooltip {
+  left: auto;
+  right: 0;
+  width: min(320px, calc(100vw - 80px));
+}
+.daily-card .status-tooltip::before {
+  left: auto;
+  right: 18px;
+}
+.daily-summary .status-badges {
+  margin-top: 16px;
+  width: fit-content;
+}
+.active-timers-card {
+  min-width: 0;
+  height: 260px;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.active-timers-heading {
+  display: flex;
+  flex: 0 0 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.active-timers-heading h2 {
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+.active-timers-heading .secondary-button {
+  min-height: 44px;
+  padding-inline: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.active-timers-empty {
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  flex: 1;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.active-timers-empty strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+.active-timers-empty p {
+  margin: 0;
+  line-height: 1.55;
+}
+.active-timers-list {
+  list-style: none;
+  padding: 0 4px 0 0;
+  margin: 0;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--muted) transparent;
+}
+.active-timers-list li {
+  display: grid;
+  grid-template-columns: 5px minmax(0, 1fr) auto 44px;
+  align-items: center;
+  gap: 10px;
+  height: 68px;
+  border-top: 1px solid var(--line);
+}
+.active-task-dot {
+  width: 5px;
+  height: 28px;
+  border-radius: 8px;
+}
+.active-timer-copy {
+  min-width: 0;
+}
+.active-timer-copy strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+.active-timer-copy span {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.active-timer-duration {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.active-timers-card .active-timer-pause {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--teal) 6%, var(--surface));
+}
+@media (max-width: 480px) {
+  .active-timers-card {
+    padding: 20px 18px;
+  }
+  .active-timers-list li {
+    gap: 8px;
+  }
 }
 .ring-wrap {
   width: 176px;
@@ -649,7 +792,7 @@ h3 {
   width: max-content;
   max-width: calc(100vw - 48px);
   min-height: 52px;
-  padding: 7px 8px 7px 13px;
+  padding: 10px 16px;
   border: 1px solid color-mix(in srgb, var(--surface) 12%, transparent);
   border-radius: 16px;
   background: var(--ink);
@@ -681,24 +824,6 @@ h3 {
   font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
-}
-.active-dock button {
-  min-height: 36px;
-  border: 0;
-  border-radius: 11px;
-  background: rgba(255, 255, 255, 0.12);
-  color: inherit;
-  padding: 0 10px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font: inherit;
-  font-size: 0.72rem;
-  font-weight: 650;
-  cursor: pointer;
-}
-.active-dock button:hover {
-  background: rgba(255, 255, 255, 0.2);
 }
 .mobile-nav {
   display: none;
@@ -1177,13 +1302,23 @@ h3 {
   white-space: nowrap;
 }
 @media (max-width: 480px) {
+  .today-grid .daily-card {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .daily-card .status-badges {
+    margin-left: auto;
+    justify-self: end;
+  }
+}
+@media (max-width: 480px) {
   .confirm-actions {
     flex-direction: column;
   }
 }
 @media (max-width: 960px) {
   .today-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .task-copy {
     display: block;
@@ -1209,11 +1344,14 @@ h3 {
     margin-bottom: 25px;
   }
   .daily-card {
-    flex-direction: column;
-    align-items: flex-start;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 18px;
+    padding: 22px;
+    min-height: 0;
   }
   .ring-wrap {
     align-self: center;
+    justify-self: center;
   }
   .task-card {
     grid-template-columns: 9px minmax(0, 1fr) 50px 44px;
