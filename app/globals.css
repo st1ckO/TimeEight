@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 :root {
+  --brand-light-display: block;
+  --brand-dark-display: none;
   --canvas: #f5f3ed;
   --surface: #fffefa;
   --surface-strong: #ffffff;
@@ -18,6 +20,8 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
+    --brand-light-display: none;
+    --brand-dark-display: block;
     --canvas: #101512;
     --surface: #171e1a;
     --surface-strong: #1c2520;
@@ -35,6 +39,8 @@
 }
 
 :root[data-theme="light"] {
+  --brand-light-display: block;
+  --brand-dark-display: none;
   color-scheme: light;
   --canvas: #f5f3ed;
   --surface: #fffefa;
@@ -52,6 +58,8 @@
 }
 
 :root[data-theme="dark"] {
+  --brand-light-display: none;
+  --brand-dark-display: block;
   color-scheme: dark;
   --canvas: #101512;
   --surface: #171e1a;
@@ -117,16 +125,59 @@ a:focus-visible {
   font-size: 1.05rem;
   padding: 0 10px 34px;
 }
-.brand span {
-  width: 38px;
-  height: 38px;
+.brand-artwork {
+  display: flex;
+  align-items: center;
+  gap: 5.4348%;
+  width: 184px;
+  max-width: 100%;
+}
+.brand-frame {
+  position: relative;
+  display: block;
+  overflow: hidden;
+}
+.brand-icon-box {
   display: grid;
   place-items: center;
-  border-radius: 13px;
-  background: var(--ink);
-  color: var(--surface);
-  font-size: 1.35rem;
-  font-weight: 800;
+  flex: 0 0 18.4783%;
+  aspect-ratio: 1;
+  border-radius: 26%;
+  background: var(--teal-soft);
+  border: 1px solid var(--line);
+}
+.brand-mark {
+  --logo-width: 657.037%;
+  --logo-left: -37.037%;
+  --logo-top: -56.0976%;
+  width: 52.9412%;
+  aspect-ratio: 270 / 410;
+}
+.brand-text {
+  --logo-width: 135.4198%;
+  --logo-left: -28.626%;
+  --logo-top: -127.7778%;
+  flex: 1;
+  min-width: 0;
+  aspect-ratio: 1310 / 270;
+}
+.brand-logo {
+  /* Frame the mark and lettering separately within the supplied canvas. */
+  position: absolute;
+  width: var(--logo-width);
+  max-width: none;
+  height: auto;
+  left: var(--logo-left);
+  top: var(--logo-top);
+}
+.brand-logo-light {
+  display: var(--brand-light-display);
+}
+.brand-logo-dark {
+  display: var(--brand-dark-display);
+}
+.mobile-brand {
+  display: none;
 }
 .sidebar nav {
   display: grid;
@@ -817,6 +868,10 @@ h3 {
 }
 
 @media (max-width: 720px) {
+  .mobile-brand {
+    display: flex;
+    padding: 0 0 22px;
+  }
   .sidebar {
     display: none;
   }
@@ -1277,6 +1332,7 @@ h3 {
   grid-template-columns: minmax(340px, 0.95fr) minmax(440px, 1.05fr);
 }
 .auth-story {
+  min-width: 0;
   padding: clamp(32px, 6vw, 78px);
   background: var(--ink);
   color: var(--surface);
@@ -1288,9 +1344,18 @@ h3 {
   color: inherit;
   padding: 0;
 }
-.auth-brand span {
-  background: var(--teal);
-  color: white;
+.auth-brand .brand-artwork {
+  width: 280px;
+}
+.auth-brand .brand-icon-box {
+  background: color-mix(in srgb, var(--surface) 12%, transparent);
+  border-color: color-mix(in srgb, var(--surface) 22%, transparent);
+}
+.auth-brand .brand-logo-light {
+  display: var(--brand-dark-display);
+}
+.auth-brand .brand-logo-dark {
+  display: var(--brand-light-display);
 }
 .auth-story h1 {
   max-width: 650px;
