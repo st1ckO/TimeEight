@@ -52,10 +52,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
         </nav>
-        <div className="sidebar-note">
-          <span>Time is information.</span>
-          <p>No scores. No judgment. Just a clearer day.</p>
-        </div>
       </aside>
 
       <main className="main-surface">

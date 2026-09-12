@@ -25,6 +25,8 @@ import {
 } from "@/lib/domain/corrections";
 import {
   aggregateEntries,
+  DAILY_GOAL_SECONDS,
+  goalForDate,
   elapsedSeconds,
   elapsedSecondsForDate,
   localDateAt,
@@ -135,7 +137,6 @@ interface AppContextValue {
     theme: ThemePreference;
     onboardingCompleted?: boolean;
   }): Promise<void>;
-  updateDailyGoal(goalSeconds: number): Promise<void>;
   clearUserData(): Promise<void>;
   dismissNotice(): void;
 }
@@ -400,19 +401,40 @@ export function AppProvider({
         storedEntries = remoteAfter.entries;
       }
       if (cancelled) return;
-      if (storedGoals.length === 0) {
+      if (
+        storedGoals.length === 0 ||
+        goalForDate(storedGoals, todayKey(storedProfile.timezone)) !==
+          DAILY_GOAL_SECONDS
+      ) {
         const goal = {
-          id: newId(),
+          id:
+            storedGoals.find(
+              (item) => item.effectiveDate === todayKey(storedProfile.timezone),
+            )?.id ?? newId(),
           userId,
           effectiveDate: todayKey(storedProfile.timezone),
-          goalSeconds: 28_800,
+          goalSeconds: DAILY_GOAL_SECONDS,
         };
-        storedGoals = [goal];
+        storedGoals = [
+          ...storedGoals.filter(
+            (item) => item.effectiveDate !== goal.effectiveDate,
+          ),
+          goal,
+        ];
         await queue(
           userId,
           "goal-upsert",
           goal as unknown as Record<string, unknown>,
         );
+      }
+      for (const goal of storedGoals) {
+        if (
+          goal.effectiveDate > todayKey(storedProfile.timezone) &&
+          goal.goalSeconds !== DAILY_GOAL_SECONDS
+        ) {
+          goal.goalSeconds = DAILY_GOAL_SECONDS;
+          await queue(userId, "goal-upsert", { ...goal });
+        }
       }
       if (storedTasks.length === 0) {
         storedTasks = seedTasks(userId);
@@ -1003,28 +1025,6 @@ export function AppProvider({
     );
   }
 
-  async function updateDailyGoal(goalSeconds: number) {
-    const effectiveDate = todayKey(profile.timezone);
-    const existing = dailyGoals.find(
-      (goal) => goal.effectiveDate === effectiveDate,
-    );
-    const goal: DailyGoalChange = {
-      id: existing?.id ?? newId(),
-      userId,
-      effectiveDate,
-      goalSeconds,
-    };
-    setDailyGoals((current) => [
-      ...current.filter((item) => item.effectiveDate !== effectiveDate),
-      goal,
-    ]);
-    await getLocalDatabase()?.dailyGoals.put(goal);
-    await persistMutation(
-      "goal-upsert",
-      goal as unknown as Record<string, unknown>,
-    );
-  }
-
   async function clearUserData() {
     await pauseAll();
     await clearLocalUser(userId);
@@ -1077,7 +1077,6 @@ export function AppProvider({
     revertEntryCorrection,
     deleteEntry,
     updateProfile,
-    updateDailyGoal,
     clearUserData,
     dismissNotice: () => setNotice(null),
   };

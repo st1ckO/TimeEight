@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DAILY_GOAL_SECONDS } from "./time";
 
 const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 const hexColor = /^#[0-9a-fA-F]{6}$/;
@@ -23,7 +24,7 @@ export const profileSchema = z.object({
 
 export const dailyGoalSchema = z.object({
   effectiveDate: z.string().regex(isoDate),
-  goalSeconds: z.number().int().min(900).max(86_400),
+  goalSeconds: z.literal(DAILY_GOAL_SECONDS),
 });
 
 export const taskSchema = z.object({

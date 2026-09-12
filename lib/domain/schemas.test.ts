@@ -8,11 +8,16 @@ import {
 } from "./schemas";
 
 describe("domain input schemas", () => {
-  it("accepts a daily goal below the streak threshold", () => {
+  it("accepts only the fixed eight-hour daily goal", () => {
     expect(
-      dailyGoalSchema.parse({ effectiveDate: "2026-09-11", goalSeconds: 3600 })
-        .goalSeconds,
-    ).toBe(3600);
+      dailyGoalSchema.parse({
+        effectiveDate: "2026-09-11",
+        goalSeconds: 28_800,
+      }).goalSeconds,
+    ).toBe(28_800);
+    expect(() =>
+      dailyGoalSchema.parse({ effectiveDate: "2026-09-11", goalSeconds: 3600 }),
+    ).toThrow();
   });
 
   it("rejects invalid task colors and empty names", () => {

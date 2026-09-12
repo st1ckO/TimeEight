@@ -56,6 +56,22 @@ describe("time domain", () => {
     expect(goalForDate(goals, "2026-09-11")).toBe(14_400);
   });
 
+  it("uses eight hours from today while preserving historical goals", () => {
+    const goals = [
+      { effectiveDate: "2026-09-01", goalSeconds: 14_400 },
+      { effectiveDate: "2026-09-20", goalSeconds: 3600 },
+    ];
+    expect(goalForDate(goals, "2026-09-12", undefined, "2026-09-13")).toBe(
+      14_400,
+    );
+    expect(goalForDate(goals, "2026-09-13", undefined, "2026-09-13")).toBe(
+      28_800,
+    );
+    expect(goalForDate(goals, "2026-09-21", undefined, "2026-09-13")).toBe(
+      28_800,
+    );
+  });
+
   it("adds overlapping entries independently", () => {
     const entries = [
       {

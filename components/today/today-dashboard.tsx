@@ -21,7 +21,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTimeEight } from "@/components/app/app-provider";
 import {
   elapsedSecondsForDate,
-  goalForDate,
+  DAILY_GOAL_SECONDS,
   formatDuration,
 } from "@/lib/domain/time";
 import { ProgressRing } from "@/components/ui/progress-ring";
@@ -33,12 +33,14 @@ import { TaskLibraryDialog } from "@/components/tasks/task-library-dialog";
 import { dailyTasks } from "@/lib/domain/task-list";
 import { taskTargetForDate } from "@/lib/domain/task-targets";
 
+import { phraseForDate } from "./daily-phrase";
+
 export function TodayDashboard() {
   const app = useTimeEight();
   const [adding, setAdding] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const activeTasks = dailyTasks(app.tasks);
-  const dailyGoal = goalForDate(app.dailyGoals, app.today);
+  const dailyGoal = DAILY_GOAL_SECONDS;
   const todaySeconds = app.totals.get(app.today) ?? 0;
   const dailyPercent = Math.round((todaySeconds / dailyGoal) * 100);
   const streakTodaySeconds = app.streakTotals.get(app.today) ?? 0;
@@ -119,9 +121,7 @@ export function TodayDashboard() {
         <aside className="setup-banner">
           <div>
             <strong>Set your own rhythm.</strong>
-            <span>
-              Confirm your timezone and choose a realistic daily ring goal.
-            </span>
+            <span>Confirm your name and timezone for future tracking.</span>
           </div>
           <Link className="secondary-button" href="/onboarding">
             Finish setup
@@ -139,15 +139,11 @@ export function TodayDashboard() {
           </ProgressRing>
           <div>
             <p className="eyebrow">Today’s rhythm</p>
-            <h2>
-              {todaySeconds >= dailyGoal
-                ? "Your chosen goal is complete."
-                : "You’re building a day you can see."}
-            </h2>
+            <h2>{phraseForDate(app.today)}</h2>
             <p className="muted">
               {todaySeconds >= dailyGoal
-                ? `${formatDuration(todaySeconds - dailyGoal)} beyond the ring, tracked without judgment.`
-                : `${formatDuration(dailyGoal - todaySeconds)} remain in your chosen daily goal.`}
+                ? `${formatDuration(todaySeconds - dailyGoal)} beyond your eight-hour goal.`
+                : `${formatDuration(dailyGoal - todaySeconds)} remain in your eight-hour daily goal.`}
             </p>
             <div className="status-badges" aria-label="Streak status">
               <StreakBadge

@@ -4,7 +4,6 @@ import { Download, LogOut, Save, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTimeEight } from "@/components/app/app-provider";
-import { goalForDate } from "@/lib/domain/time";
 import type { ThemePreference } from "@/lib/domain/types";
 import { clearLocalUser } from "@/lib/offline/db";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -30,23 +29,15 @@ export function SettingsPage() {
   const [themeOverride, setThemeOverride] = useState<ThemePreference | null>(
     null,
   );
-  const [goalHoursOverride, setGoalHoursOverride] = useState<number | null>(
-    null,
-  );
   const [message, setMessage] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const name = nameOverride ?? app.profile.displayName;
   const timezone = timezoneOverride ?? app.profile.timezone;
   const theme = themeOverride ?? app.profile.theme;
-  const goalHours =
-    goalHoursOverride ?? goalForDate(app.dailyGoals, app.today) / 3600;
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
-    if (goalHours < 0.25 || goalHours > 24)
-      return setMessage("Choose a goal from 15 minutes to 24 hours.");
     await app.updateProfile({ displayName: name, timezone, theme });
-    await app.updateDailyGoal(Math.round(goalHours * 3600));
     document.documentElement.dataset.theme = theme === "system" ? "" : theme;
     setMessage("Settings saved for today and future tracking.");
   }
@@ -104,7 +95,10 @@ export function SettingsPage() {
         <div>
           <p className="eyebrow">Preferences and privacy</p>
           <h1>Settings</h1>
-          <p>Keep your goals realistic and your data under your control.</p>
+          <p>
+            Make TimeEight feel like yours and keep your data under your
+            control.
+          </p>
         </div>
       </header>
       <div className="settings-grid">
@@ -132,23 +126,6 @@ export function SettingsPage() {
               ))}
             </select>
             <small>Changes apply only to future tracking.</small>
-          </label>
-          <label>
-            Daily ring goal in hours
-            <input
-              type="number"
-              min={0.25}
-              max={24}
-              step={0.25}
-              value={goalHours}
-              onChange={(event) =>
-                setGoalHoursOverride(Number(event.target.value))
-              }
-            />
-            <small>
-              The streak uses a separate three-hour threshold of unedited timer
-              time.
-            </small>
           </label>
           <fieldset>
             <legend>Theme</legend>
