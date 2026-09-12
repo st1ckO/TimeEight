@@ -1,6 +1,92 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
+test("centers the reached-limit confirmation and continues only by choice", async ({
+  page,
+}, testInfo) => {
+  await page
+    .getByRole("link", { name: "Calendar", exact: true })
+    .first()
+    .click();
+  await page.getByRole("button", { name: "Add time", exact: true }).click();
+  const entry = page.getByRole("dialog");
+  await entry.getByRole("combobox").selectOption({ label: "Watch list" });
+  await entry.getByLabel("Hours", { exact: true }).fill("2");
+  await entry.getByLabel("Minutes", { exact: true }).fill("0");
+  await entry.getByRole("button", { name: "Add time", exact: true }).click();
+  await page.getByRole("link", { name: "Today", exact: true }).first().click();
+  const trigger = page.getByRole("button", {
+    name: "Continue Watch list",
+    exact: true,
+  });
+  for (const theme of ["light", "dark"]) {
+    await page.evaluate(
+      (theme) => (document.documentElement.dataset.theme = theme),
+      theme,
+    );
+    await trigger.click();
+    const dialog = page.getByRole("dialog", {
+      name: "Continue Watch list?",
+      exact: true,
+    });
+    await expect(
+      dialog.getByRole("button", { name: "Keep paused" }),
+    ).toBeFocused();
+    await expect(dialog).toContainText(
+      "but the extra time will not be tracked.",
+    );
+    for (const label of ["Keep paused", "Continue anyway"]) {
+      const button = dialog.getByRole("button", { name: label });
+      const layout = await button.evaluate((element) => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        return {
+          lines: range.getClientRects().length,
+          fits: element.scrollWidth <= element.clientWidth,
+        };
+      });
+      expect(layout.lines).toBe(1);
+      expect(layout.fits).toBe(true);
+    }
+    const bounds = await dialog.boundingBox();
+    const viewport = page.viewportSize()!;
+    expect(bounds).not.toBeNull();
+    expect(
+      Math.abs(bounds!.x + bounds!.width / 2 - viewport.width / 2),
+    ).toBeLessThan(2);
+    expect(
+      Math.abs(bounds!.y + bounds!.height / 2 - viewport.height / 2),
+    ).toBeLessThan(2);
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.width).toBeLessThanOrEqual(viewport.width);
+    expect(
+      await dialog.evaluate(
+        (element) => getComputedStyle(element).backgroundColor,
+      ),
+    ).not.toBe("rgba(0, 0, 0, 0)");
+    await expect(
+      dialog.getByText("Limit reached", { exact: true }),
+    ).toBeVisible();
+    const scan = await new AxeBuilder({ page })
+      .include('[role="dialog"]')
+      .analyze();
+    expect(scan.violations).toEqual([]);
+    await page.screenshot({ path: testInfo.outputPath(`limit-${theme}.png`) });
+    await dialog.getByRole("button", { name: "Keep paused" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(trigger).toBeVisible();
+  }
+  await trigger.click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toBeHidden();
+  await trigger.click();
+  await page.getByRole("button", { name: "Continue anyway" }).click();
+  await expect(page.getByRole("dialog")).toBeHidden();
+  await page
+    .getByRole("button", { name: "Pause Watch list", exact: true })
+    .click();
+});
+
 test("gives shared task actions a subtle hover lift", async ({
   page,
 }, testInfo) => {

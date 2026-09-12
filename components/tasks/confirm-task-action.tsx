@@ -9,6 +9,8 @@ export function ConfirmTaskAction({
   title,
   description,
   confirmLabel,
+  cancelLabel = "Cancel",
+  eyebrow,
   onConfirm,
 }: {
   open: boolean;
@@ -16,6 +18,8 @@ export function ConfirmTaskAction({
   title: string;
   description: string;
   confirmLabel: string;
+  cancelLabel?: string;
+  eyebrow?: string;
   onConfirm(): Promise<void>;
 }) {
   const cancelButton = useRef<HTMLButtonElement>(null);
@@ -55,6 +59,7 @@ export function ConfirmTaskAction({
             cancelButton.current?.focus();
           }}
         >
+          {eyebrow && <p className="eyebrow">{eyebrow}</p>}
           <div className="dialog-heading">
             <Dialog.Title>{title}</Dialog.Title>
           </div>
@@ -73,7 +78,7 @@ export function ConfirmTaskAction({
               disabled={pending}
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              {cancelLabel}
             </button>
             <button
               className="primary-button form-primary"
