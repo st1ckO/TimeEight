@@ -6,7 +6,20 @@ import { useState } from "react";
 import type { GoalKind, Task } from "@/lib/domain/types";
 import { taskSchema } from "@/lib/domain/schemas";
 
-const colors = ["#197c67", "#5577dc", "#d58c33", "#a45cc4", "#d86464"];
+const colors = [
+  { name: "Teal", value: "#197c67" },
+  { name: "Blue", value: "#5577dc" },
+  { name: "Amber", value: "#d58c33" },
+  { name: "Purple", value: "#a45cc4" },
+  { name: "Coral", value: "#d86464" },
+  { name: "Sage", value: "#73966b" },
+  { name: "Cyan", value: "#328ca3" },
+  { name: "Indigo", value: "#7063bd" },
+  { name: "Rose", value: "#c65b8c" },
+  { name: "Terracotta", value: "#b96c4b" },
+  { name: "Gold", value: "#b39535" },
+  { name: "Slate", value: "#718096" },
+];
 
 function TaskForm({
   task,
@@ -29,7 +42,7 @@ function TaskForm({
   const [minutes, setMinutes] = useState(
     Math.round((task?.targetSeconds ?? 3600) / 60),
   );
-  const [color, setColor] = useState(task?.color ?? colors[0]!);
+  const [color, setColor] = useState(task?.color ?? colors[0]!.value);
   const [error, setError] = useState<string | null>(null);
 
   async function submit(event: React.FormEvent) {
@@ -62,7 +75,7 @@ function TaskForm({
       </label>
       <fieldset>
         <legend>Timer intention</legend>
-        <div className="segmented">
+        <div className="task-intention">
           <label>
             <input
               type="radio"
@@ -99,11 +112,13 @@ function TaskForm({
           {colors.map((option) => (
             <button
               type="button"
-              key={option}
-              className={color === option ? "selected" : ""}
-              style={{ background: option }}
-              onClick={() => setColor(option)}
-              aria-label={`Use color ${option}`}
+              key={option.value}
+              className={color === option.value ? "selected" : ""}
+              style={{ background: option.value }}
+              onClick={() => setColor(option.value)}
+              aria-label={`Use ${option.name.toLowerCase()} color`}
+              aria-pressed={color === option.value}
+              title={option.name}
             />
           ))}
         </div>
@@ -141,7 +156,7 @@ export function TaskDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
         <Dialog.Content
-          className="dialog-content"
+          className="dialog-content task-dialog"
           aria-describedby="task-description"
         >
           <div className="dialog-heading">
@@ -153,7 +168,10 @@ export function TaskDialog({
               <X size={20} />
             </Dialog.Close>
           </div>
-          <Dialog.Description id="task-description">
+          <Dialog.Description
+            id="task-description"
+            className="task-description"
+          >
             Choose whether this time is something to build up or gently limit.
           </Dialog.Description>
           {open && (
