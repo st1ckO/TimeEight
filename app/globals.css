@@ -644,24 +644,25 @@ h3 {
 }
 .active-dock {
   position: fixed;
-  left: calc(248px + 50%);
+  right: 24px;
   bottom: 24px;
-  transform: translateX(-50%);
-  width: min(520px, calc(100vw - 300px));
-  min-height: 68px;
-  padding: 10px 11px 10px 18px;
-  border-radius: 20px;
+  width: max-content;
+  max-width: calc(100vw - 48px);
+  min-height: 52px;
+  padding: 7px 8px 7px 13px;
+  border: 1px solid color-mix(in srgb, var(--surface) 12%, transparent);
+  border-radius: 16px;
   background: var(--ink);
   color: var(--surface);
-  box-shadow: 0 18px 50px rgba(15, 25, 20, 0.3);
+  box-shadow: 0 12px 32px rgba(15, 25, 20, 0.24);
   display: flex;
   align-items: center;
-  gap: 13px;
+  gap: 10px;
   z-index: 20;
 }
 .pulse-dot {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: #6ee0bf;
   box-shadow: 0 0 0 6px rgba(110, 224, 191, 0.12);
@@ -669,27 +670,35 @@ h3 {
 .active-dock > div {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  gap: 1px;
+  min-width: 76px;
 }
 .active-dock span {
-  font-size: 0.76rem;
+  font-size: 0.69rem;
   opacity: 0.75;
 }
 .active-dock strong {
+  font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
 }
 .active-dock button {
-  min-height: 46px;
+  min-height: 36px;
   border: 0;
-  border-radius: 14px;
+  border-radius: 11px;
   background: rgba(255, 255, 255, 0.12);
   color: inherit;
-  padding: 0 15px;
+  padding: 0 10px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 650;
   cursor: pointer;
+}
+.active-dock button:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 .mobile-nav {
   display: none;
@@ -1171,11 +1180,9 @@ h3 {
     font-size: 0;
   }
   .active-dock {
-    left: 14px;
     right: 14px;
     bottom: 82px;
-    transform: none;
-    width: auto;
+    max-width: calc(100vw - 28px);
   }
   .mobile-nav {
     position: fixed;
