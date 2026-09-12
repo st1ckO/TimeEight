@@ -1614,6 +1614,16 @@ h3 {
   justify-content: space-between;
   margin-bottom: 20px;
 }
+.day-detail {
+  contain: size;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.day-summary,
+.day-history-toolbar {
+  flex-shrink: 0;
+}
 .weekday-row,
 .calendar-grid {
   display: grid;
@@ -1752,6 +1762,14 @@ h3 {
 }
 .history-list {
   display: grid;
+  align-content: start;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
   gap: 8px;
 }
 .history-entry {
@@ -1895,6 +1913,9 @@ h3 {
 @media (max-width: 1120px) {
   .calendar-layout {
     grid-template-columns: 1fr;
+  }
+  .day-detail {
+    height: 560px;
   }
 }
 

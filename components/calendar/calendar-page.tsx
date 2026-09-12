@@ -244,7 +244,13 @@ export function CalendarPage() {
               Add time
             </button>
           </div>
-          <div className="history-list">
+          <div
+            className="history-list"
+            key={selectedDate}
+            role="region"
+            aria-label="Tracked entries"
+            tabIndex={0}
+          >
             {entries.length === 0 ? (
               <div className="empty-card">No tracked entries for this day.</div>
             ) : (

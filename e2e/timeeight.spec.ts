@@ -1,6 +1,63 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
+test("scrolls long history without growing the calendar", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 1500, height: 950 });
+  await page
+    .getByRole("link", { name: "Calendar", exact: true })
+    .first()
+    .click();
+  const calendar = page.locator(".calendar-card");
+  const initialHeight = (await calendar.boundingBox())!.height;
+  for (let index = 0; index < 10; index++) {
+    await page.getByRole("button", { name: "Add time", exact: true }).click();
+    const dialog = page.getByRole("dialog", {
+      name: "Add tracked time",
+      exact: true,
+    });
+    await dialog.getByRole("button", { name: "Add time", exact: true }).click();
+    await expect(dialog).toBeHidden();
+  }
+  expect((await calendar.boundingBox())!.height).toBeCloseTo(initialHeight, 0);
+  expect((await page.locator(".day-detail").boundingBox())!.height).toBeCloseTo(
+    initialHeight,
+    0,
+  );
+  for (const width of [1500, 320]) {
+    await page.setViewportSize({ width, height: 950 });
+    const history = page.getByRole("region", {
+      name: "Tracked entries",
+      exact: true,
+    });
+    expect(
+      await history.evaluate(
+        (element) => element.scrollHeight > element.clientHeight,
+      ),
+    ).toBe(true);
+    if (width === 320)
+      expect((await page.locator(".day-detail").boundingBox())!.height).toBe(
+        560,
+      );
+    await history.focus();
+    await page.keyboard.press("End");
+    await expect
+      .poll(() => history.evaluate((element) => element.scrollTop))
+      .toBeGreaterThan(0);
+    await history
+      .getByRole("button", { name: /Edit entry/ })
+      .last()
+      .focus();
+    await expect(
+      history.getByRole("button", { name: /Edit entry/ }).last(),
+    ).toBeFocused();
+    const scan = await new AxeBuilder({ page })
+      .include(".day-detail")
+      .analyze();
+    expect(scan.violations).toEqual([]);
+  }
+});
+
 test("keeps calendar entry controls balanced in both themes", async ({
   page,
 }, testInfo) => {
