@@ -37,10 +37,7 @@ export function InsightsPage() {
         <div>
           <p className="eyebrow">Patterns without scores</p>
           <h1>Insights</h1>
-          <p>
-            These are records of tracked time—not a judgment about what was
-            productive or worthwhile.
-          </p>
+          <p>A closer look at how your time adds up.</p>
         </div>
       </header>
       <section className="record-grid" aria-label="Personal time records">
@@ -100,7 +97,7 @@ export function InsightsPage() {
           <h2>{formatDuration(insights.currentWeekSeconds)} tracked</h2>
           <p>
             {bestWeek
-              ? `That is ${comparison}% of your most tracked week. It is context, not a target.`
+              ? `That is ${comparison}% of your most tracked week.`
               : "Your first week becomes a useful reference point, not a benchmark."}
           </p>
           <div className="comparison-line">
