@@ -58,6 +58,7 @@ export function SettingsPage() {
       profile: app.profile,
       dailyGoals: app.dailyGoals,
       tasks: app.tasks,
+      taskDailyTargets: app.taskDailyTargets,
       entries: app.entries,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], {

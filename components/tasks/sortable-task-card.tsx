@@ -13,13 +13,15 @@ import {
   Pause,
   Pencil,
   Play,
-  Trash2,
+  Minus,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ActiveTimer, Task } from "@/lib/domain/types";
 import { formatDuration, taskDisplaySeconds } from "@/lib/domain/time";
 import { useTimeEight } from "@/components/app/app-provider";
 import { TaskDialog } from "./task-dialog";
+import { ConfirmTaskAction } from "./confirm-task-action";
+import { taskTargetForDate } from "@/lib/domain/task-targets";
 
 export function SortableTaskCard({
   task,
@@ -38,19 +40,46 @@ export function SortableTaskCard({
   count: number;
   move(from: number, to: number): void;
 }) {
-  const { startTimer, pauseTimer, updateTask, archiveTask } = useTimeEight();
+  const app = useTimeEight();
+  const { startTimer, pauseTimer, updateTodayTask, removeTaskFromDailyList } =
+    app;
+  const targetSeconds = taskTargetForDate(
+    task,
+    app.taskDailyTargets,
+    app.today,
+  );
   const [editing, setEditing] = useState(false);
   const [menu, setMenu] = useState(false);
+  const menuWrapRef = useRef<HTMLDivElement>(null);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!menu) return;
+    function dismissOutside(event: PointerEvent) {
+      if (!menuWrapRef.current?.contains(event.target as Node)) setMenu(false);
+    }
+    function dismissWithEscape(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      setMenu(false);
+      menuTriggerRef.current?.focus();
+    }
+    document.addEventListener("pointerdown", dismissOutside);
+    document.addEventListener("keydown", dismissWithEscape);
+    return () => {
+      document.removeEventListener("pointerdown", dismissOutside);
+      document.removeEventListener("keydown", dismissWithEscape);
+    };
+  }, [menu]);
   const [confirmOverride, setConfirmOverride] = useState(false);
+  const [confirmRemoval, setConfirmRemoval] = useState(false);
   const liveSeconds = trackedSeconds + activeSeconds;
   const displaySeconds = taskDisplaySeconds(
     task.goalKind,
     liveSeconds,
-    task.targetSeconds,
+    targetSeconds,
   );
-  const percent = Math.min(100, (liveSeconds / task.targetSeconds) * 100);
+  const percent = Math.min(100, (liveSeconds / targetSeconds) * 100);
   const limitReached =
-    task.goalKind === "limit" && liveSeconds >= task.targetSeconds;
+    task.goalKind === "limit" && liveSeconds >= targetSeconds;
   const sortable = useSortable({ id: task.id });
   const style = {
     transform: CSS.Transform.toString(sortable.transform),
@@ -101,11 +130,16 @@ export function SortableTaskCard({
             {formatDuration(displaySeconds, { clock: Boolean(timer) })}
             {task.goalKind === "limit" && !timer ? " left" : ""}
           </strong>
-          <span>
+          <button
+            type="button"
+            className="task-target-button"
+            aria-label={`Edit today’s allotment for ${task.name}`}
+            onClick={() => setEditing(true)}
+          >
             {task.goalKind === "minimum"
-              ? `of ${formatDuration(task.targetSeconds)}`
-              : `${formatDuration(task.targetSeconds)} limit`}
-          </span>
+              ? `of ${formatDuration(targetSeconds)}`
+              : `${formatDuration(targetSeconds)} limit`}
+          </button>
         </div>
         <button
           className={`timer-button ${timer ? "pause" : ""}`}
@@ -118,8 +152,10 @@ export function SortableTaskCard({
             <Play fill="currentColor" size={20} />
           )}
         </button>
-        <div className="task-menu-wrap">
+        <div className="task-menu-wrap" ref={menuWrapRef}>
           <button
+            ref={menuTriggerRef}
+            type="button"
             className="more-button"
             aria-label={`Actions for ${task.name}`}
             aria-expanded={menu}
@@ -128,7 +164,11 @@ export function SortableTaskCard({
             <MoreHorizontal size={18} />
           </button>
           {menu && (
-            <div className="task-menu">
+            <div
+              className="task-menu"
+              role="group"
+              aria-label={`Task actions for ${task.name}`}
+            >
               <button
                 onClick={() => {
                   move(index, index - 1);
@@ -150,6 +190,7 @@ export function SortableTaskCard({
                 Move down
               </button>
               <button
+                className="task-menu-edit"
                 onClick={() => {
                   setEditing(true);
                   setMenu(false);
@@ -158,9 +199,15 @@ export function SortableTaskCard({
                 <Pencil size={16} />
                 Edit
               </button>
-              <button onClick={() => void archiveTask(task.id)}>
-                <Trash2 size={16} />
-                Archive
+              <button
+                className="task-menu-remove"
+                onClick={() => {
+                  setMenu(false);
+                  setConfirmRemoval(true);
+                }}
+              >
+                <Minus size={16} />
+                Remove
               </button>
             </div>
           )}
@@ -170,7 +217,30 @@ export function SortableTaskCard({
         open={editing}
         onOpenChange={setEditing}
         task={task}
-        onSave={(input) => updateTask(task.id, input)}
+        todayEditor={{
+          localDate: app.today,
+          targetSeconds,
+          trackedSeconds: liveSeconds,
+          running: Boolean(timer),
+        }}
+        onSave={(input) =>
+          updateTodayTask(task.id, input, {
+            localDate: app.today,
+            useAsDefault: input.useAsDefault,
+            confirmStop: input.confirmStop,
+          })
+        }
+      />
+      <ConfirmTaskAction
+        open={confirmRemoval}
+        onOpenChange={setConfirmRemoval}
+        title={`Remove ${task.name} from daily list?`}
+        description="The task stays in your saved Task list and its tracked history is kept. Any running timer will stop and its elapsed time will be saved. This choice carries forward until you add the task again."
+        confirmLabel="Remove task"
+        onConfirm={async () => {
+          await removeTaskFromDailyList(task.id);
+          document.getElementById("add-daily-task")?.focus();
+        }}
       />
       {confirmOverride && (
         <div className="dialog-overlay">

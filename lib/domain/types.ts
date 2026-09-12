@@ -26,6 +26,7 @@ export interface Task {
   targetSeconds: number;
   sortOrder: number;
   archivedAt: string | null;
+  onDailyList: boolean;
 }
 
 export interface ActiveTimer {
@@ -39,6 +40,14 @@ export interface ActiveTimer {
   checkpointSeconds: number;
   limitOverride: boolean;
   mutationId: string;
+}
+
+export interface TaskDailyTarget {
+  id: string;
+  userId: string;
+  taskId: string;
+  localDate: string;
+  targetSeconds: number;
 }
 
 export interface TimeEntry {

@@ -29,13 +29,15 @@ import { StreakBadge } from "@/components/ui/streak-badge";
 import { StreakSaverBadge } from "@/components/ui/streak-saver-badge";
 import { SortableTaskCard } from "@/components/tasks/sortable-task-card";
 import { TaskDialog } from "@/components/tasks/task-dialog";
+import { TaskLibraryDialog } from "@/components/tasks/task-library-dialog";
+import { dailyTasks } from "@/lib/domain/task-list";
+import { taskTargetForDate } from "@/lib/domain/task-targets";
 
 export function TodayDashboard() {
   const app = useTimeEight();
   const [adding, setAdding] = useState(false);
-  const activeTasks = app.tasks
-    .filter((task) => !task.archivedAt)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const activeTasks = dailyTasks(app.tasks);
   const dailyGoal = goalForDate(app.dailyGoals, app.today);
   const todaySeconds = app.totals.get(app.today) ?? 0;
   const dailyPercent = Math.round((todaySeconds / dailyGoal) * 100);
@@ -67,7 +69,8 @@ export function TodayDashboard() {
       const total =
         (trackedByTask.get(task.id) ?? 0) +
         elapsedSecondsForDate(timer, app.today, app.now);
-      if (total >= task.targetSeconds) void app.pauseTimer(task.id);
+      if (total >= taskTargetForDate(task, app.taskDailyTargets, app.today))
+        void app.pauseTimer(task.id);
     }
   }, [activeTasks, app, trackedByTask]);
 
@@ -164,14 +167,32 @@ export function TodayDashboard() {
       <section className="tasks-section">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Reusable daily list</p>
+            <p className="eyebrow">Your daily list</p>
             <h2>Your timers</h2>
           </div>
-          <button className="primary-button" onClick={() => setAdding(true)}>
-            <Plus size={18} />
-            Add task
-          </button>
+          <div className="task-list-actions">
+            <button
+              className="secondary-button"
+              disabled={!app.hydrated}
+              onClick={() => setLibraryOpen(true)}
+            >
+              Task list
+            </button>
+            <button
+              id="add-daily-task"
+              className="primary-button"
+              disabled={!app.hydrated}
+              onClick={() => setAdding(true)}
+            >
+              <Plus size={18} />
+              Add task
+            </button>
+          </div>
         </div>
+        <p className="daily-list-hint">
+          Your choices carry forward each day. Remove a timer when you don’t
+          need it; add it back from your Task list.
+        </p>
         {!app.hydrated ? (
           <div className="empty-card">Loading your timers…</div>
         ) : activeTasks.length === 0 ? (
@@ -212,7 +233,20 @@ export function TodayDashboard() {
           </DndContext>
         )}
       </section>
-      <TaskDialog open={adding} onOpenChange={setAdding} onSave={app.addTask} />
+      <TaskDialog
+        open={adding}
+        onOpenChange={setAdding}
+        onSave={app.addTask}
+        savedTasks={app.tasks}
+        savedTargets={Object.fromEntries(
+          app.tasks.map((task) => [
+            task.id,
+            taskTargetForDate(task, app.taskDailyTargets, app.today),
+          ]),
+        )}
+        onSelect={app.addTaskToDailyList}
+      />
+      <TaskLibraryDialog open={libraryOpen} onOpenChange={setLibraryOpen} />
     </>
   );
 }

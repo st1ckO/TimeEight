@@ -5,6 +5,26 @@ import { X } from "lucide-react";
 import { useState } from "react";
 import type { GoalKind, Task } from "@/lib/domain/types";
 import { taskSchema } from "@/lib/domain/schemas";
+import { SavedTaskChoices } from "./saved-task-choices";
+import { AnimatedHeight } from "@/components/ui/animated-height";
+import { allotmentStopsTimer } from "@/lib/domain/task-targets";
+import { formatDuration } from "@/lib/domain/time";
+
+interface TodayEditor {
+  localDate: string;
+  targetSeconds: number;
+  trackedSeconds: number;
+  running: boolean;
+}
+
+interface TaskFormInput {
+  name: string;
+  goalKind: GoalKind;
+  targetSeconds: number;
+  color: string;
+  useAsDefault?: boolean;
+  confirmStop?: boolean;
+}
 
 const colors = [
   { name: "Teal", value: "#197c67" },
@@ -25,14 +45,11 @@ function TaskForm({
   task,
   onSave,
   close,
+  todayEditor,
 }: {
   task?: Task;
-  onSave(input: {
-    name: string;
-    goalKind: GoalKind;
-    targetSeconds: number;
-    color: string;
-  }): Promise<void>;
+  todayEditor?: TodayEditor;
+  onSave(input: TaskFormInput): Promise<void>;
   close(): void;
 }) {
   const [name, setName] = useState(task?.name ?? "");
@@ -40,13 +57,27 @@ function TaskForm({
     task?.goalKind ?? "minimum",
   );
   const [minutes, setMinutes] = useState(
-    Math.round((task?.targetSeconds ?? 3600) / 60),
+    Math.round(
+      (todayEditor?.targetSeconds ?? task?.targetSeconds ?? 3600) / 60,
+    ),
   );
   const [color, setColor] = useState(task?.color ?? colors[0]!.value);
   const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const [useAsDefault, setUseAsDefault] = useState(false);
+  const [confirmStop, setConfirmStop] = useState(false);
+  const needsStop =
+    todayEditor &&
+    allotmentStopsTimer(
+      goalKind,
+      minutes * 60,
+      todayEditor.trackedSeconds,
+      todayEditor.running,
+    );
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (pending) return;
     const parsed = taskSchema.safeParse({
       name,
       goalKind,
@@ -57,16 +88,35 @@ function TaskForm({
       return setError(
         "Add a name and choose a target between 1 minute and 24 hours.",
       );
-    await onSave(parsed.data);
-    close();
+    setPending(true);
+    setError(null);
+    try {
+      if (needsStop && !confirmStop) {
+        setError("Confirm stopping the timer before saving this allotment.");
+        return;
+      }
+      await onSave({
+        ...parsed.data,
+        ...(todayEditor ? { useAsDefault, confirmStop } : {}),
+      });
+      close();
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Couldn't save this task. Please try again.",
+      );
+    } finally {
+      setPending(false);
+    }
   }
 
-  return (
-    <form className="dialog-form" onSubmit={submit}>
+  const savedTaskFields = (
+    <>
       <label>
         Task name
         <input
-          autoFocus
+          autoFocus={!todayEditor}
           value={name}
           onChange={(event) => setName(event.target.value)}
           maxLength={80}
@@ -96,16 +146,18 @@ function TaskForm({
           </label>
         </div>
       </fieldset>
-      <label>
-        Daily target in minutes
-        <input
-          type="number"
-          min={1}
-          max={1440}
-          value={minutes}
-          onChange={(event) => setMinutes(Number(event.target.value))}
-        />
-      </label>
+      {!todayEditor && (
+        <label>
+          {task ? "Default daily target in minutes" : "Daily target in minutes"}
+          <input
+            type="number"
+            min={1}
+            max={1440}
+            value={minutes}
+            onChange={(event) => setMinutes(Number(event.target.value))}
+          />
+        </label>
+      )}
       <fieldset>
         <legend>Color</legend>
         <div className="color-options">
@@ -123,13 +175,129 @@ function TaskForm({
           ))}
         </div>
       </fieldset>
+    </>
+  );
+
+  return (
+    <form className="dialog-form" onSubmit={submit}>
+      {todayEditor && (
+        <fieldset className="today-allotment-fields">
+          <legend>Today’s allotment</legend>
+          <p className="form-hint">
+            Only for today ({todayEditor.localDate}). Tomorrow uses the task
+            default:{" "}
+            {formatDuration(
+              useAsDefault ? minutes * 60 : (task?.targetSeconds ?? 3600),
+            )}
+            .
+          </p>
+          <div className="allotment-duration">
+            <label>
+              Hours
+              <input
+                type="number"
+                autoFocus
+                min={0}
+                max={24}
+                value={Math.floor(minutes / 60)}
+                onChange={(event) => {
+                  setMinutes(Number(event.target.value) * 60 + (minutes % 60));
+                  setConfirmStop(false);
+                }}
+              />
+            </label>
+            <label>
+              Minutes
+              <input
+                type="number"
+                min={0}
+                max={59}
+                value={minutes % 60}
+                onChange={(event) => {
+                  setMinutes(
+                    Math.floor(minutes / 60) * 60 + Number(event.target.value),
+                  );
+                  setConfirmStop(false);
+                }}
+              />
+            </label>
+          </div>
+          <div className="allotment-shortcuts">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => {
+                setMinutes(Math.max(1, minutes - 15));
+                setConfirmStop(false);
+              }}
+            >
+              −15 min
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => {
+                setMinutes(Math.min(1440, minutes + 15));
+                setConfirmStop(false);
+              }}
+            >
+              +15 min
+            </button>
+            {task && minutes * 60 !== task.targetSeconds && (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  setMinutes(task.targetSeconds / 60);
+                  setUseAsDefault(false);
+                  setConfirmStop(false);
+                }}
+              >
+                Reset to default
+              </button>
+            )}
+          </div>
+          <label className="allotment-check">
+            <input
+              type="checkbox"
+              checked={useAsDefault}
+              onChange={(event) => setUseAsDefault(event.target.checked)}
+            />
+            <span>Use as task default too</span>
+          </label>
+          {needsStop && (
+            <label className="allotment-check">
+              <input
+                type="checkbox"
+                checked={confirmStop}
+                onChange={(event) => setConfirmStop(event.target.checked)}
+              />
+              <span>
+                This limit is already reached. Stop the running timer and save
+                its tracked time.
+              </span>
+            </label>
+          )}
+        </fieldset>
+      )}
+      {todayEditor ? (
+        <details className="saved-task-settings">
+          <summary>Saved-task settings</summary>
+          <p className="form-hint">
+            Name, intention, and color apply everywhere.
+          </p>
+          <div className="dialog-form">{savedTaskFields}</div>
+        </details>
+      ) : (
+        savedTaskFields
+      )}
       {error && (
         <p className="form-message" role="alert">
           {error}
         </p>
       )}
-      <button className="primary-button form-primary">
-        {task ? "Save changes" : "Add task"}
+      <button className="primary-button form-primary" disabled={pending}>
+        {pending ? "Saving…" : task ? "Save changes" : "Add task"}
       </button>
     </form>
   );
@@ -140,19 +308,30 @@ export function TaskDialog({
   onOpenChange,
   task,
   onSave,
+  savedTasks,
+  onSelect,
+  todayEditor,
+  savedTargets,
 }: {
   open: boolean;
   onOpenChange(open: boolean): void;
   task?: Task;
-  onSave(input: {
-    name: string;
-    goalKind: GoalKind;
-    targetSeconds: number;
-    color: string;
-  }): Promise<void>;
+  savedTasks?: Task[];
+  savedTargets?: Record<string, number>;
+  todayEditor?: TodayEditor;
+  onSelect?(id: string, targetSeconds?: number): Promise<void>;
+  onSave(input: TaskFormInput): Promise<void>;
 }) {
+  const [source, setSource] = useState<"new" | "saved">("new");
+  const canChoose = !task && savedTasks !== undefined && onSelect !== undefined;
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) setSource("new");
+        onOpenChange(next);
+      }}
+    >
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
         <Dialog.Content
@@ -172,15 +351,61 @@ export function TaskDialog({
             id="task-description"
             className="task-description"
           >
-            Choose whether this time is something to build up or gently limit.
+            {todayEditor
+              ? "Adjust today’s time without changing your tracked history."
+              : task
+                ? "Change saved defaults. Today’s chosen allotment and past targets are kept."
+                : "Choose whether this time is something to build up or gently limit."}
           </Dialog.Description>
           {open && (
-            <TaskForm
-              key={task?.id ?? "new"}
-              task={task}
-              onSave={onSave}
-              close={() => onOpenChange(false)}
-            />
+            <AnimatedHeight className="task-dialog-body">
+              {canChoose && (
+                <div
+                  className="task-source-options"
+                  role="group"
+                  aria-label="Task source"
+                >
+                  <button
+                    type="button"
+                    aria-pressed={source === "new"}
+                    onClick={() => setSource("new")}
+                  >
+                    New task
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={source === "saved"}
+                    onClick={() => setSource("saved")}
+                  >
+                    From task list
+                  </button>
+                </div>
+              )}
+              <div hidden={canChoose && source === "saved"}>
+                <TaskForm
+                  key={`${task?.id ?? "new"}:${todayEditor?.localDate ?? "default"}`}
+                  task={task}
+                  todayEditor={todayEditor}
+                  onSave={onSave}
+                  close={() => {
+                    setSource("new");
+                    onOpenChange(false);
+                  }}
+                />
+              </div>
+              {canChoose && source === "saved" && (
+                <SavedTaskChoices
+                  tasks={savedTasks}
+                  targets={savedTargets}
+                  onSelect={async (id, targetSeconds) => {
+                    if (targetSeconds === undefined) await onSelect(id);
+                    else await onSelect(id, targetSeconds);
+                    setSource("new");
+                    onOpenChange(false);
+                  }}
+                />
+              )}
+            </AnimatedHeight>
           )}
         </Dialog.Content>
       </Dialog.Portal>

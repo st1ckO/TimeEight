@@ -6,21 +6,35 @@ import type {
   ActiveTimer,
   DailyGoalChange,
   Task,
+  TaskDailyTarget,
   TimeEntry,
 } from "@/lib/domain/types";
 import type { LocalProfile } from "./db";
 import { localDateAt } from "@/lib/domain/time";
+import {
+  savedTaskSchema,
+  taskListStateSchema,
+  taskDailyTargetSchema,
+  taskSettingsSchema,
+} from "@/lib/domain/schemas";
+import { taskTargetId } from "@/lib/domain/task-targets";
 
 function toTaskRow(payload: Record<string, unknown>) {
+  const task = savedTaskSchema.parse({
+    ...payload,
+    archivedAt: payload.archivedAt ?? null,
+    onDailyList: payload.archivedAt ? false : (payload.onDailyList ?? true),
+  });
   return {
-    id: payload.id as string,
-    user_id: payload.userId as string,
-    name: payload.name as string,
-    color: payload.color as string,
-    goal_kind: payload.goalKind as "minimum" | "limit",
-    target_seconds: payload.targetSeconds as number,
-    sort_order: payload.sortOrder as number,
-    archived_at: (payload.archivedAt as string | null) ?? null,
+    id: task.id,
+    user_id: task.userId,
+    name: task.name,
+    color: task.color,
+    goal_kind: task.goalKind,
+    target_seconds: task.targetSeconds,
+    sort_order: task.sortOrder,
+    archived_at: task.archivedAt,
+    on_daily_list: task.onDailyList,
   };
 }
 
@@ -51,13 +65,60 @@ async function applyMutation(
 ) {
   const payload = mutation.payload;
   switch (mutation.kind) {
+    case "task-target-snapshot":
+    case "task-target-upsert": {
+      const target = taskDailyTargetSchema.parse(payload);
+      return client.from("task_daily_targets").upsert(
+        {
+          user_id: mutation.userId,
+          task_id: target.taskId,
+          local_date: target.localDate,
+          target_seconds: target.targetSeconds,
+        },
+        {
+          onConflict: "user_id,task_id,local_date",
+          ignoreDuplicates: mutation.kind === "task-target-snapshot",
+        },
+      );
+    }
+    case "task-settings-update": {
+      const settings = taskSettingsSchema.parse(payload);
+      return client
+        .from("tasks")
+        .update({
+          name: settings.name,
+          color: settings.color,
+          goal_kind: settings.goalKind,
+          ...(settings.targetSeconds === undefined
+            ? {}
+            : { target_seconds: settings.targetSeconds }),
+        })
+        .eq("id", settings.id)
+        .eq("user_id", mutation.userId);
+    }
     case "task-upsert":
       return client.from("tasks").upsert(toTaskRow(payload));
     case "task-archive":
       return client
         .from("tasks")
-        .update({ archived_at: payload.archivedAt as string })
+        .update({
+          archived_at: payload.archivedAt as string,
+          on_daily_list: false,
+        })
         .eq("id", payload.id as string);
+    case "task-list-state": {
+      const parsed = taskListStateSchema.safeParse(payload);
+      if (!parsed.success)
+        return { error: { message: "Invalid task list state" } };
+      return client
+        .from("tasks")
+        .update({
+          on_daily_list: parsed.data.onDailyList,
+          archived_at: parsed.data.archivedAt,
+        })
+        .eq("id", parsed.data.id)
+        .eq("user_id", mutation.userId);
+    }
     case "timer-start":
       return client.from("active_timers").upsert({
         id: payload.id as string,
@@ -127,7 +188,12 @@ export async function syncPendingMutations(
   let synced = 0;
 
   for (const mutation of pending) {
-    const result = await applyMutation(client, mutation);
+    let result;
+    try {
+      result = await applyMutation(client, mutation);
+    } catch {
+      return { synced, error: "Queued change could not be applied" };
+    }
     if (result.error) return { synced, error: result.error.message };
     await db.pendingMutations.delete(mutation.id);
     synced += 1;
@@ -139,6 +205,7 @@ export interface RemoteSnapshot {
   profile: LocalProfile;
   dailyGoals: DailyGoalChange[];
   tasks: Task[];
+  taskDailyTargets: TaskDailyTarget[];
   activeTimers: ActiveTimer[];
   entries: TimeEntry[];
 }
@@ -147,25 +214,40 @@ export async function loadRemoteSnapshot(
   userId: string,
 ): Promise<RemoteSnapshot> {
   const client = createClient();
-  const [profileResult, goalsResult, tasksResult, timersResult, entriesResult] =
-    await Promise.all([
-      client.from("profiles").select("*").eq("id", userId).single(),
-      client.from("daily_goal_changes").select("*").eq("user_id", userId),
-      client.from("tasks").select("*").eq("user_id", userId),
-      client.from("active_timers").select("*").eq("user_id", userId),
-      client.from("time_entries").select("*").eq("user_id", userId),
-    ]);
+  const [
+    profileResult,
+    goalsResult,
+    tasksResult,
+    timersResult,
+    entriesResult,
+    targetsResult,
+  ] = await Promise.all([
+    client.from("profiles").select("*").eq("id", userId).single(),
+    client.from("daily_goal_changes").select("*").eq("user_id", userId),
+    client.from("tasks").select("*").eq("user_id", userId),
+    client.from("active_timers").select("*").eq("user_id", userId),
+    client.from("time_entries").select("*").eq("user_id", userId),
+    client.from("task_daily_targets").select("*").eq("user_id", userId),
+  ]);
   const error = [
     profileResult,
     goalsResult,
     tasksResult,
     timersResult,
     entriesResult,
+    targetsResult,
   ].find((result) => result.error)?.error;
   if (error || !profileResult.data)
     throw new Error(error?.message ?? "Profile was not found");
   const profileRow = profileResult.data;
   return {
+    taskDailyTargets: (targetsResult.data ?? []).map((row) => ({
+      id: taskTargetId(row.task_id, row.local_date),
+      userId: row.user_id,
+      taskId: row.task_id,
+      localDate: row.local_date,
+      targetSeconds: row.target_seconds,
+    })),
     profile: {
       id: profileRow.id,
       displayName: profileRow.display_name,
@@ -192,6 +274,7 @@ export async function loadRemoteSnapshot(
       targetSeconds: row.target_seconds,
       sortOrder: row.sort_order,
       archivedAt: row.archived_at,
+      onDailyList: row.on_daily_list,
     })),
     activeTimers: (timersResult.data ?? []).map((row) => ({
       id: row.id,

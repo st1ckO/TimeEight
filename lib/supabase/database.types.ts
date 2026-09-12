@@ -62,6 +62,7 @@ export interface Database {
           target_seconds: number;
           sort_order: number;
           archived_at: string | null;
+          on_daily_list: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -74,6 +75,7 @@ export interface Database {
           target_seconds: number;
           sort_order: number;
           archived_at?: string | null;
+          on_daily_list?: boolean;
         };
         Update: {
           name?: string;
@@ -82,7 +84,24 @@ export interface Database {
           target_seconds?: number;
           sort_order?: number;
           archived_at?: string | null;
+          on_daily_list?: boolean;
         };
+        Relationships: [];
+      };
+      task_daily_targets: {
+        Row: {
+          user_id: string;
+          task_id: string;
+          local_date: string;
+          target_seconds: number;
+        };
+        Insert: {
+          user_id: string;
+          task_id: string;
+          local_date: string;
+          target_seconds: number;
+        };
+        Update: { target_seconds?: number };
         Relationships: [];
       };
       active_timers: {
