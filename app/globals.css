@@ -1544,7 +1544,18 @@ h3 {
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  button:not(:disabled) {
+    transition:
+      transform 0.16s ease,
+      filter 0.16s ease,
+      box-shadow 0.16s ease,
+      background-color 0.16s ease;
+  }
+  button:not(:disabled):hover {
+    transform: translateY(-1px);
+    filter: brightness(1.04);
+  }
   .status-tooltip {
     transition:
       opacity 0.16s ease,
@@ -1553,17 +1564,6 @@ h3 {
   }
   .ring-value {
     transition: stroke-dashoffset 0.55s ease;
-  }
-  .timer-button,
-  .primary-button {
-    transition:
-      transform 0.18s ease,
-      filter 0.18s ease;
-  }
-  .timer-button:hover,
-  .primary-button:hover {
-    transform: translateY(-1px);
-    filter: brightness(1.05);
   }
 }
 

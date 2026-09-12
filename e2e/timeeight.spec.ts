@@ -1,6 +1,31 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
+test("gives shared task actions a subtle hover lift", async ({
+  page,
+}, testInfo) => {
+  await page.getByRole("button", { name: "Task list", exact: true }).click();
+  const edit = page.getByRole("button", {
+    name: "Edit saved task Morning walk",
+  });
+  await edit.hover();
+  const styles = await edit.evaluate((element) => {
+    const computed = getComputedStyle(element);
+    return {
+      transform: computed.transform,
+      transition: computed.transitionProperty,
+      filter: computed.filter,
+    };
+  });
+  if (testInfo.project.name === "chromium") {
+    expect(styles.transform).not.toBe("none");
+    expect(styles.transition).toContain("transform");
+    expect(styles.filter).toContain("brightness");
+  } else {
+    expect(styles.transform).toBe("none");
+  }
+});
+
 test("warns before closing a tab with a running timer", async ({ page }) => {
   await page
     .getByRole("button", { name: "Start Morning walk", exact: true })
