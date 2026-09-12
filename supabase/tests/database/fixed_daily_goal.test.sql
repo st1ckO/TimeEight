@@ -14,7 +14,7 @@ insert into public.daily_goal_changes (user_id, effective_date, goal_seconds)
 values ('33333333-3333-4333-8333-333333333333', (now() at time zone 'Asia/Manila')::date + 1, 14400);
 select is((select goal_seconds from public.daily_goal_changes where effective_date = (now() at time zone 'Asia/Manila')::date + 1), 28800, 'future goals use eight hours');
 insert into public.daily_goal_changes (user_id, effective_date, goal_seconds)
-values ('33333333-3333-4333-8333-333333333333', (now() at time zone 'Asia/Manila')::date - 1, 14400);
-select is((select goal_seconds from public.daily_goal_changes where effective_date = (now() at time zone 'Asia/Manila')::date - 1), 14400, 'historical snapshots retain their original goals');
+values ('33333333-3333-4333-8333-333333333333', date '2000-01-01', 14400);
+select is((select goal_seconds from public.daily_goal_changes where effective_date = date '2000-01-01'), 14400, 'historical snapshots retain their original goals');
 select * from finish();
 rollback;
