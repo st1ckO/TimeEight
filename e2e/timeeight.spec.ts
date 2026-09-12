@@ -1,6 +1,79 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
+test("warns before closing a tab with a running timer", async ({ page }) => {
+  await page
+    .getByRole("button", { name: "Start Morning walk", exact: true })
+    .click();
+  const canceledCloseWarning = page.waitForEvent("dialog");
+  await page.close({ runBeforeUnload: true });
+  const warning = await canceledCloseWarning;
+  expect(warning.type()).toBe("beforeunload");
+  await warning.dismiss();
+  expect(page.isClosed()).toBe(false);
+  await expect(
+    page.getByRole("button", { name: "Pause Morning walk", exact: true }),
+  ).toBeVisible();
+  const acceptedCloseWarning = page.waitForEvent("dialog");
+  await page.close({ runBeforeUnload: true });
+  const closed = page.waitForEvent("close");
+  await (await acceptedCloseWarning).accept();
+  await closed;
+});
+
+test("warns on reload while timers run and leaves internal navigation uninterrupted", async ({
+  page,
+}) => {
+  await page
+    .getByRole("button", { name: "Start Morning walk", exact: true })
+    .click();
+  const warning = page.waitForEvent("dialog");
+  // A canceled reload may never reach Playwright's requested load state.
+  const canceledReload = page.reload({ timeout: 3000 }).catch(() => null);
+  const dialog = await warning;
+  expect(dialog.type()).toBe("beforeunload");
+  await dialog.dismiss();
+  await canceledReload;
+  await expect(
+    page.getByRole("button", { name: "Pause Morning walk", exact: true }),
+  ).toBeVisible();
+
+  const unexpectedDialogs: string[] = [];
+  const rejectUnexpected = async (
+    dialog: import("@playwright/test").Dialog,
+  ) => {
+    unexpectedDialogs.push(dialog.type());
+    await dialog.dismiss();
+  };
+  page.on("dialog", rejectUnexpected);
+  await page
+    .getByRole("link", { name: "Calendar", exact: true })
+    .first()
+    .click();
+  await expect(page).toHaveURL(/\/calendar$/);
+  await page.getByRole("link", { name: "Today", exact: true }).first().click();
+  await page
+    .getByRole("button", { name: "Pause Morning walk", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Start Morning walk", exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  expect(unexpectedDialogs).toEqual([]);
+  page.off("dialog", rejectUnexpected);
+
+  await page
+    .getByRole("button", { name: "Start Morning walk", exact: true })
+    .click();
+  const acceptedWarning = page.waitForEvent("dialog");
+  const acceptedReload = page.reload();
+  await (await acceptedWarning).accept();
+  await acceptedReload;
+  await expect(
+    page.getByRole("heading", { name: "Morning walk", exact: true }),
+  ).toBeVisible();
+});
+
 test("shows aligned task actions and dismisses with Escape or an outside click", async ({
   page,
 }, testInfo) => {

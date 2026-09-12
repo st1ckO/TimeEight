@@ -31,6 +31,7 @@ import {
   splitDurationAcrossLocalDates,
 } from "@/lib/domain/time";
 import { aggregateStreakEntries, calculateStreak } from "@/lib/domain/streak";
+import { useTimerLeaveWarning } from "./use-timer-leave-warning";
 import {
   taskSchema,
   taskListStateSchema,
@@ -238,6 +239,7 @@ export function AppProvider({
   );
   const targetsRef = useRef<TaskDailyTarget[]>([]);
   const [activeTimers, setActiveTimers] = useState<ActiveTimer[]>([]);
+  useTimerLeaveWarning(activeTimers.length > 0);
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [now, setNow] = useState(0);
   const [hydrated, setHydrated] = useState(false);
