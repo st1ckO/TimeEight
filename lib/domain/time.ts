@@ -157,11 +157,15 @@ export function aggregateEntries(entries: TimeEntry[]): Map<string, number> {
   return totals;
 }
 
+export const DAILY_GOAL_SECONDS = 8 * 60 * 60;
+
 export function goalForDate(
   changes: { effectiveDate: string; goalSeconds: number }[],
   date: string,
-  fallback = 28_800,
+  fallback = DAILY_GOAL_SECONDS,
+  fixedFromDate?: string,
 ): number {
+  if (fixedFromDate && date >= fixedFromDate) return DAILY_GOAL_SECONDS;
   return (
     [...changes]
       .filter((change) => change.effectiveDate <= date)

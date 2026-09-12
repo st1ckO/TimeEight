@@ -109,7 +109,12 @@ export function CalendarPage() {
           <div className="calendar-grid">
             {cells.map((date) => {
               const seconds = app.totals.get(date) ?? 0;
-              const goal = goalForDate(app.dailyGoals, date);
+              const goal = goalForDate(
+                app.dailyGoals,
+                date,
+                undefined,
+                app.today,
+              );
               const percent = Math.round((seconds / goal) * 100);
               const inMonth = date.startsWith(month);
               const protectedDay = app.streak.protectedDates.includes(date);
@@ -161,7 +166,9 @@ export function CalendarPage() {
             <strong>{formatDuration(app.totals.get(selectedDate) ?? 0)}</strong>
             <span>
               tracked against{" "}
-              {formatDuration(goalForDate(app.dailyGoals, selectedDate))}
+              {formatDuration(
+                goalForDate(app.dailyGoals, selectedDate, undefined, app.today),
+              )}
             </span>
           </div>
           <div className="history-list">

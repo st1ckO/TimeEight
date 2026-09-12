@@ -1,10 +1,10 @@
 "use client";
 
-import { ArrowRight, Check, Clock3, Gauge, MapPin } from "lucide-react";
+import { ArrowRight, Check, Clock3, MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTimeEight } from "@/components/app/app-provider";
-import { dailyGoalSchema, profileSchema } from "@/lib/domain/schemas";
+import { profileSchema } from "@/lib/domain/schemas";
 
 const suggestedZones = [
   "Asia/Manila",
@@ -26,7 +26,6 @@ export function OnboardingForm() {
   const [timezone, setTimezone] = useState(
     suggestedZones.includes(detected) ? detected : app.profile.timezone,
   );
-  const [goalHours, setGoalHours] = useState(4);
   const [keepExamples, setKeepExamples] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -38,19 +37,12 @@ export function OnboardingForm() {
       timezone,
       theme: app.profile.theme,
     });
-    const goal = dailyGoalSchema.safeParse({
-      effectiveDate: app.today,
-      goalSeconds: Math.round(goalHours * 3600),
-    });
-    if (!profile.success || !goal.success) {
-      setMessage(
-        "Check your name, timezone, and a goal between 15 minutes and 24 hours.",
-      );
+    if (!profile.success) {
+      setMessage("Check your name and timezone.");
       return;
     }
     setPending(true);
     await app.updateProfile({ ...profile.data, onboardingCompleted: true });
-    await app.updateDailyGoal(goal.data.goalSeconds);
     if (!keepExamples) {
       for (const task of app.tasks.filter((item) => !item.archivedAt)) {
         await app.archiveTask(task.id);
@@ -62,11 +54,11 @@ export function OnboardingForm() {
   return (
     <section className="onboarding-card">
       <div className="onboarding-intro">
-        <p className="eyebrow">Three small choices</p>
+        <p className="eyebrow">Your day, your timezone</p>
         <h1>Make TimeEight feel like yours.</h1>
         <p>
-          Your timezone decides where midnight falls. Your daily goal controls
-          the large progress ring; the gentler three-hour streak stays separate.
+          Your timezone decides where midnight falls. The daily ring has a fixed
+          eight-hour goal; your streak still starts at three hours.
         </p>
       </div>
       <form className="onboarding-form" onSubmit={submit}>
@@ -101,23 +93,15 @@ export function OnboardingForm() {
             Detected as {detected}. Future tracking uses this timezone.
           </small>
         </label>
-        <label>
-          <span>
-            <Gauge size={18} />
-            Daily ring goal
-          </span>
-          <input
-            type="number"
-            min={0.25}
-            max={24}
-            step={0.25}
-            value={goalHours}
-            onChange={(event) => setGoalHours(Number(event.target.value))}
-          />
+        <div>
+          <p>
+            Daily ring goal: <strong>8 hours</strong>
+          </p>
           <small>
-            Start realistically. You can change this for today and future days.
+            Track time at your own pace. Unedited timer or recovered time
+            qualifies for the streak at three hours.
           </small>
-        </label>
+        </div>
         <label className="check-row">
           <input
             type="checkbox"

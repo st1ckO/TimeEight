@@ -10,7 +10,7 @@ import type {
   TimeEntry,
 } from "@/lib/domain/types";
 import type { LocalProfile } from "./db";
-import { localDateAt } from "@/lib/domain/time";
+import { DAILY_GOAL_SECONDS, localDateAt } from "@/lib/domain/time";
 import {
   savedTaskSchema,
   taskListStateSchema,
@@ -57,6 +57,10 @@ function toEntryRow(payload: Record<string, unknown>) {
       (payload.correctionOriginalDurationSeconds as number | null) ?? null,
     mutation_id: payload.mutationId as string,
   };
+}
+
+async function dbTimezone(userId: string) {
+  return (await getLocalDatabase()?.profiles.get(userId))?.timezone ?? "UTC";
 }
 
 async function applyMutation(
@@ -168,7 +172,11 @@ async function applyMutation(
           id: payload.id as string,
           user_id: payload.userId as string,
           effective_date: payload.effectiveDate as string,
-          goal_seconds: payload.goalSeconds as number,
+          goal_seconds:
+            (payload.effectiveDate as string) >=
+            localDateAt(Date.now(), await dbTimezone(mutation.userId))
+              ? DAILY_GOAL_SECONDS
+              : (payload.goalSeconds as number),
         },
         { onConflict: "user_id,effective_date" },
       );

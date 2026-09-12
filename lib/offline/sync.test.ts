@@ -49,11 +49,52 @@ describe("offline daily-list changes", () => {
       typeof createClient
     >);
     vi.mocked(getLocalDatabase).mockReturnValue({
+      profiles: { get: vi.fn().mockResolvedValue({ timezone: "Asia/Manila" }) },
       pendingMutations: {
         where: () => ({ equals: () => ({ sortBy }) }),
         delete: removeMutation,
       },
     } as unknown as NonNullable<ReturnType<typeof getLocalDatabase>>);
+  });
+
+  it("preserves legacy queued historical goal snapshots", async () => {
+    sortBy.mockResolvedValue([
+      {
+        ...state,
+        kind: "goal-upsert",
+        payload: {
+          id: "goal-1",
+          userId: "user-1",
+          effectiveDate: "2000-01-01",
+          goalSeconds: 14400,
+        },
+      },
+    ]);
+    expect(await syncPendingMutations("user-1")).toEqual({ synced: 1 });
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ goal_seconds: 14400 }),
+      { onConflict: "user_id,effective_date" },
+    );
+  });
+
+  it("normalizes legacy queued custom goals to eight hours", async () => {
+    sortBy.mockResolvedValue([
+      {
+        ...state,
+        kind: "goal-upsert",
+        payload: {
+          id: "goal-1",
+          userId: "user-1",
+          effectiveDate: "2099-09-13",
+          goalSeconds: 3600,
+        },
+      },
+    ]);
+    expect(await syncPendingMutations("user-1")).toEqual({ synced: 1 });
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ goal_seconds: 28_800 }),
+      { onConflict: "user_id,effective_date" },
+    );
   });
 
   it("replays selection as a narrow owner-filtered update", async () => {

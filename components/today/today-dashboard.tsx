@@ -21,7 +21,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTimeEight } from "@/components/app/app-provider";
 import {
   elapsedSecondsForDate,
-  goalForDate,
+  DAILY_GOAL_SECONDS,
   formatDuration,
 } from "@/lib/domain/time";
 import { ProgressRing } from "@/components/ui/progress-ring";
@@ -38,7 +38,7 @@ export function TodayDashboard() {
   const [adding, setAdding] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const activeTasks = dailyTasks(app.tasks);
-  const dailyGoal = goalForDate(app.dailyGoals, app.today);
+  const dailyGoal = DAILY_GOAL_SECONDS;
   const todaySeconds = app.totals.get(app.today) ?? 0;
   const dailyPercent = Math.round((todaySeconds / dailyGoal) * 100);
   const streakTodaySeconds = app.streakTotals.get(app.today) ?? 0;
@@ -147,7 +147,7 @@ export function TodayDashboard() {
             <p className="muted">
               {todaySeconds >= dailyGoal
                 ? `${formatDuration(todaySeconds - dailyGoal)} beyond the ring, tracked without judgment.`
-                : `${formatDuration(dailyGoal - todaySeconds)} remain in your chosen daily goal.`}
+                : `${formatDuration(dailyGoal - todaySeconds)} remain in your eight-hour daily goal.`}
             </p>
             <div className="status-badges" aria-label="Streak status">
               <StreakBadge
