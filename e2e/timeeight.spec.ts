@@ -503,6 +503,51 @@ test("adds a task with a compact keyboard intention control and expanded colors"
   await page.getByRole("button", { name: "Add task", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByLabel("Task name")).toBeFocused();
+  const sourceOptions = dialog.locator(".task-source-options");
+  const measureSourceOptions = async () => {
+    const buttonWidths = await sourceOptions
+      .locator("button")
+      .evaluateAll((buttons) =>
+        buttons.map((button) => button.getBoundingClientRect().width),
+      );
+    const sliderWidth = await sourceOptions.evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element, "::before").width),
+    );
+    return { buttonWidths, sliderWidth };
+  };
+  const newTaskOptions = await measureSourceOptions();
+  await dialog.getByRole("button", { name: "From task list" }).click();
+  await expect(dialog.getByLabel("Find a saved task")).toBeVisible();
+  await dialog.getByLabel("Find a saved task").fill("no matching tasks");
+  await expect
+    .poll(async () => (await sourceOptions.boundingBox())!.height)
+    .toBeLessThanOrEqual(52);
+  await dialog.getByLabel("Find a saved task").clear();
+  const savedTaskOptions = await measureSourceOptions();
+  for (const { buttonWidths, sliderWidth } of [
+    newTaskOptions,
+    savedTaskOptions,
+  ]) {
+    expect(Math.abs(buttonWidths[0]! - buttonWidths[1]!)).toBeLessThan(1);
+    expect(Math.abs(buttonWidths[0]! - sliderWidth)).toBeLessThan(1);
+  }
+  await dialog.getByRole("button", { name: "New task" }).click();
+  await expect(dialog.getByLabel("Task name")).toBeVisible();
+  await expect
+    .poll(async () => (await sourceOptions.boundingBox())!.height)
+    .toBeLessThanOrEqual(52);
+  await expect
+    .poll(() =>
+      dialog
+        .locator(".task-dialog-body")
+        .evaluate((element) =>
+          Math.abs(
+            element.getBoundingClientRect().height -
+              (element.firstElementChild as HTMLElement).scrollHeight,
+          ),
+        ),
+    )
+    .toBeLessThan(0.5);
   const description = await dialog.locator(".task-description").boundingBox();
   const heading = await dialog.locator(".dialog-heading").boundingBox();
   const form = await dialog.locator("form").boundingBox();

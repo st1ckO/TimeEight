@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { GoalKind, Task } from "@/lib/domain/types";
 import { taskSchema } from "@/lib/domain/schemas";
 import { SavedTaskChoices } from "./saved-task-choices";
+import { AnimatedHeight } from "@/components/ui/animated-height";
 import { allotmentStopsTimer } from "@/lib/domain/task-targets";
 import { formatDuration } from "@/lib/domain/time";
 
@@ -357,7 +358,7 @@ export function TaskDialog({
                 : "Choose whether this time is something to build up or gently limit."}
           </Dialog.Description>
           {open && (
-            <div className="task-dialog-body">
+            <AnimatedHeight className="task-dialog-body">
               {canChoose && (
                 <div
                   className="task-source-options"
@@ -404,7 +405,7 @@ export function TaskDialog({
                   }}
                 />
               )}
-            </div>
+            </AnimatedHeight>
           )}
         </Dialog.Content>
       </Dialog.Portal>

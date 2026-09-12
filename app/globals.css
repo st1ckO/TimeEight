@@ -813,7 +813,17 @@ h3 {
   font-size: 0.92rem;
   line-height: 1.55;
 }
-.task-dialog-body {
+.task-dialog-body > div {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+.animated-height {
+  display: block;
+  overflow: hidden;
+  transition: height 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.task-library-body > div {
   display: grid;
   gap: 18px;
 }
@@ -877,15 +887,36 @@ h3 {
   flex-basis: 100%;
 }
 .task-source-options {
-  display: flex;
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
   padding: 4px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--canvas);
 }
+.task-source-options::before,
+.task-intention::before {
+  position: absolute;
+  z-index: 0;
+  content: "";
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  box-shadow: 0 2px 5px rgba(20, 34, 27, 0.06);
+  pointer-events: none;
+}
+.task-source-options::before {
+  inset: 4px auto 4px 4px;
+  width: calc((100% - 14px) / 2);
+}
+.task-source-options:has(button:nth-child(2)[aria-pressed="true"])::before {
+  transform: translateX(calc(100% + 6px));
+}
 .task-source-options button {
-  flex: 1;
+  min-width: 0;
   min-height: 40px;
   padding: 8px;
   border: 1px solid transparent;
@@ -895,10 +926,10 @@ h3 {
   font-size: 0.82rem;
   font-weight: 750;
   cursor: pointer;
+  position: relative;
+  z-index: 1;
 }
 .task-source-options button[aria-pressed="true"] {
-  border-color: var(--line);
-  background: var(--surface-strong);
   color: var(--ink);
 }
 .task-list-actions {
@@ -971,6 +1002,8 @@ h3 {
   font-size: 1rem;
 }
 .task-intention {
+  position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 4px;
@@ -979,8 +1012,16 @@ h3 {
   border-radius: 12px;
   background: var(--canvas);
 }
+.task-intention::before {
+  inset: 4px auto 4px 4px;
+  width: calc((100% - 12px) / 2);
+}
+.task-intention:has(label:nth-child(2) input:checked)::before {
+  transform: translateX(calc(100% + 4px));
+}
 .task-intention label {
   position: relative;
+  z-index: 1;
   cursor: pointer;
 }
 .task-intention input[type="radio"] {
@@ -1002,10 +1043,7 @@ h3 {
   color: var(--muted);
 }
 .task-intention input:checked + span {
-  border-color: var(--line);
-  background: var(--surface-strong);
   color: var(--ink);
-  box-shadow: 0 2px 5px rgba(20, 34, 27, 0.06);
 }
 .task-intention label:hover span {
   color: var(--ink);
@@ -1564,6 +1602,23 @@ h3 {
   }
   .ring-value {
     transition: stroke-dashoffset 0.55s ease;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .task-source-options::before,
+  .task-intention::before {
+    transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .task-source-options button,
+  .task-intention span {
+    transition: color 0.3s ease;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animated-height {
+    transition: none;
   }
 }
 
