@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { phraseForDate } from "../components/today/daily-phrase";
 
 test("shows the fixed goal in onboarding and keeps Settings focused on preferences", async ({
   page,
@@ -95,4 +96,32 @@ test("upgrades a custom goal without rewriting earlier daily goals", async ({
       }, dates),
     )
     .toEqual([14400, 28800]);
+});
+
+test("keeps the rhythm phrase through reloads and updates on a new local day", async ({
+  page,
+}) => {
+  await page.clock.install({ time: new Date("2026-09-13T04:00:00Z") });
+  await page.goto("/today");
+  await expect(page.getByText("Today’s rhythm", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: phraseForDate("2026-09-13"),
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByRole("heading", {
+      name: phraseForDate("2026-09-13"),
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.clock.setFixedTime(new Date("2026-09-14T04:00:00Z"));
+  await expect(
+    page.getByRole("heading", {
+      name: phraseForDate("2026-09-14"),
+      exact: true,
+    }),
+  ).toBeVisible();
 });
