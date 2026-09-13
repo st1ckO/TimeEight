@@ -45,11 +45,11 @@ test("scrolls long history without growing the calendar", async ({ page }) => {
       .poll(() => history.evaluate((element) => element.scrollTop))
       .toBeGreaterThan(0);
     await history
-      .getByRole("button", { name: /Edit entry/ })
+      .getByRole("button", { name: /Entry actions/ })
       .last()
       .focus();
     await expect(
-      history.getByRole("button", { name: /Edit entry/ }).last(),
+      history.getByRole("button", { name: /Entry actions/ }).last(),
     ).toBeFocused();
     const scan = await new AxeBuilder({ page })
       .include(".day-detail")
@@ -61,6 +61,7 @@ test("scrolls long history without growing the calendar", async ({ page }) => {
 test("keeps calendar entry controls balanced in both themes", async ({
   page,
 }, testInfo) => {
+  test.setTimeout(60_000);
   const longName =
     "Super Long Task Name That Would Surely Exceed The UI Boundaries";
   await page.getByRole("button", { name: "Add task", exact: true }).click();
@@ -794,7 +795,7 @@ test("warns before lowering a running limit and retains tracked time", async ({
     .locator(".history-entry")
     .filter({ has: page.getByRole("heading", { name: "Watch list" }) });
   await expect(history).toHaveCount(2);
-  await expect(history.filter({ hasText: "Manual correction" })).toContainText(
+  await expect(history.filter({ hasText: "Manual addition" })).toContainText(
     "10m",
   );
   await expect(history.filter({ hasText: "Timer" })).toContainText(
@@ -1013,28 +1014,93 @@ test("tracks concurrent tasks and writes duration history", async ({
 
 test("reverts a timer correction to restore streak eligibility", async ({
   page,
-}) => {
+}, testInfo) => {
+  test.setTimeout(60_000);
   await page.getByRole("button", { name: "Start Morning walk" }).click();
   await page.waitForTimeout(1100);
   await page.getByRole("button", { name: "Pause Morning walk" }).click();
   await page.getByRole("link", { name: "Calendar" }).first().click();
 
   await page
-    .getByRole("button", { name: "Edit entry for Morning walk" })
+    .getByRole("button", { name: "Entry actions for Morning walk" })
     .click();
+  await page.getByRole("menuitem", { name: "Edit entry", exact: true }).click();
   await page.getByLabel("Hours").fill("1");
   await page.getByLabel("Minutes").fill("0");
   await page.getByRole("button", { name: "Save correction" }).click();
+  await expect(
+    page.getByRole("button", { name: "Entry actions for Morning walk" }),
+  ).toBeFocused();
 
   await expect(page.getByText("Timer · corrected")).toBeVisible();
+  for (const width of [1500, 320]) {
+    await page.setViewportSize({ width, height: 950 });
+    for (const theme of ["light", "dark"]) {
+      await page.evaluate(
+        (theme) => (document.documentElement.dataset.theme = theme),
+        theme,
+      );
+      const row = page.locator(".history-entry");
+      await expect(row.locator("button")).toHaveCount(1);
+      expect(
+        await row.evaluate(
+          (element) => element.scrollWidth <= element.clientWidth,
+        ),
+      ).toBe(true);
+      const actions = page.getByRole("button", {
+        name: "Entry actions for Morning walk",
+      });
+      await actions.click();
+      await expect(
+        page.getByRole("menuitem", {
+          name: "Restore original time",
+          exact: true,
+        }),
+      ).toBeVisible();
+      const scan = await new AxeBuilder({ page })
+        .include(".history-actions-menu")
+        .analyze();
+      expect(scan.violations).toEqual([]);
+      await page.screenshot({
+        path: testInfo.outputPath(`history-actions-${width}-${theme}.png`),
+      });
+      await page.keyboard.press("Escape");
+      await expect(actions).toBeFocused();
+    }
+  }
   await page
-    .getByRole("button", { name: "Revert correction for Morning walk" })
+    .getByRole("button", { name: "Entry actions for Morning walk" })
+    .click();
+  await page
+    .getByRole("menuitem", { name: "Restore original time", exact: true })
     .click();
 
   await expect(page.getByText("Timer · corrected")).toBeHidden();
   await expect(
-    page.getByRole("button", { name: "Revert correction for Morning walk" }),
+    page.getByRole("menuitem", { name: "Restore original time", exact: true }),
   ).toBeHidden();
+  const actions = page.getByRole("button", {
+    name: "Entry actions for Morning walk",
+  });
+  await actions.click();
+  await page
+    .getByRole("menuitem", { name: "Delete entry", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(actions).toBeFocused();
+  await expect(page.locator(".history-entry")).toHaveCount(1);
+  await actions.click();
+  await page
+    .getByRole("menuitem", { name: "Delete entry", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Delete tracked entry?" })
+    .getByRole("button", { name: "Delete entry", exact: true })
+    .click();
+  await expect(page.locator(".history-entry")).toHaveCount(0);
+  await expect(
+    page.getByRole("region", { name: "Tracked entries", exact: true }),
+  ).toBeFocused();
 });
 
 test("offers a button alternative to drag reordering", async ({ page }) => {

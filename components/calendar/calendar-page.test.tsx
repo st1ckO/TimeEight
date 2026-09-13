@@ -87,11 +87,16 @@ describe("CalendarPage corrections", () => {
     const user = userEvent.setup();
     render(<CalendarPage />);
 
-    const revert = screen.getByRole("button", {
-      name: "Revert correction for Morning walk",
+    await user.click(
+      screen.getAllByRole("button", {
+        name: "Entry actions for Morning walk",
+      })[0]!,
+    );
+    const revert = screen.getByRole("menuitem", {
+      name: "Restore original time",
     });
     expect(screen.getAllByText("Morning walk")).toHaveLength(2);
-    expect(screen.getAllByText("Manual correction")).toHaveLength(1);
+    expect(screen.getAllByText("Manual addition")).toHaveLength(1);
 
     await user.click(revert);
 
@@ -128,5 +133,54 @@ describe("CalendarPage corrections", () => {
     await user.click(screen.getByRole("option", { name: "Latest first" }));
     expect(durations()).toEqual(["2h 0m", "30m", "30m"]);
     expect(sourceEntries).toEqual([manualEntry, correctedTimer, laterTimer]);
+  });
+
+  it("keeps manual and recovered rows compact and confirms deletion", async () => {
+    const user = userEvent.setup();
+    const app = vi.mocked(useTimeEight)();
+    const deleteEntry = vi.fn(async () => undefined);
+    vi.mocked(useTimeEight).mockReturnValue({
+      ...app,
+      deleteEntry,
+      entries: [
+        manualEntry,
+        {
+          ...correctedTimer,
+          id: "recovered",
+          source: "recovered",
+          manuallyAdjusted: false,
+        },
+      ],
+    });
+    const { container } = render(<CalendarPage />);
+    expect(screen.getByText("Recovered")).toHaveAttribute(
+      "title",
+      "Recovered checkpoint",
+    );
+    expect(screen.getByText("Manual addition")).toBeInTheDocument();
+    for (const row of container.querySelectorAll(".history-entry"))
+      expect(row.querySelectorAll("button")).toHaveLength(1);
+    await user.click(
+      screen.getAllByRole("button", {
+        name: "Entry actions for Morning walk",
+      })[1]!,
+    );
+    expect(
+      screen.queryByRole("menuitem", { name: "Restore original time" }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: "Delete entry" }));
+    expect(
+      screen.getByRole("dialog", { name: "Delete tracked entry?" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(deleteEntry).not.toHaveBeenCalled();
+    await user.click(
+      screen.getAllByRole("button", {
+        name: "Entry actions for Morning walk",
+      })[1]!,
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Delete entry" }));
+    await user.click(screen.getByRole("button", { name: "Delete entry" }));
+    expect(deleteEntry).toHaveBeenCalledWith("manual-entry");
   });
 });

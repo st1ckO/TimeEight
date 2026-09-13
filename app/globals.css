@@ -1774,16 +1774,11 @@ h3 {
 }
 .history-entry {
   min-width: 0;
-  padding: 12px 8px;
+  padding: 14px 4px;
   border-bottom: 1px solid var(--line);
   display: grid;
   grid-template-columns: 7px minmax(0, 1fr) auto auto;
-  gap: 9px;
-  align-items: center;
-}
-.history-entry-actions {
-  display: flex;
-  gap: 4px;
+  gap: 12px;
   align-items: center;
 }
 .history-entry .task-dot {
@@ -1794,6 +1789,80 @@ h3 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+.history-entry > strong {
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.history-entry-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 10px;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+.history-entry-source {
+  --entry-badge: #19a882;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--entry-badge) 18%, var(--surface));
+  color: color-mix(in srgb, var(--entry-badge) 50%, var(--ink));
+  white-space: nowrap;
+}
+.history-entry-source[data-source="recovered"] {
+  --entry-badge: #428be0;
+}
+.history-entry-source[data-source="manual"] {
+  --entry-badge: #c79b25;
+}
+.history-entry-source[data-corrected="true"] {
+  --entry-badge: #a078d1;
+}
+.history-entry-target {
+  white-space: nowrap;
+}
+.history-entry .history-entry-menu-trigger {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+}
+.history-actions-menu {
+  z-index: 70;
+  min-width: 200px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 12px 36px rgba(10, 16, 13, 0.18);
+}
+.history-actions-menu [role="menuitem"] {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.history-actions-menu [data-highlighted] {
+  background: var(--teal-soft);
+  outline: none;
+}
+.history-actions-menu [role="separator"] {
+  height: 1px;
+  margin: 5px;
+  background: var(--line);
+}
+.history-actions-menu .history-delete-action {
+  color: color-mix(in srgb, #bd3f3f 60%, var(--ink));
 }
 .history-entry p,
 .form-hint {

@@ -994,9 +994,6 @@ export function AppProvider({
       "entry-upsert",
       next as unknown as Record<string, unknown>,
     );
-    setNotice(
-      "Correction reverted. The original timer time can count toward your streak again.",
-    );
   }
 
   async function deleteEntry(id: string) {
