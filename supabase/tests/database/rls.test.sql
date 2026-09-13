@@ -1,6 +1,6 @@
 begin;
 
-select plan(12);
+select plan(19);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
 values
@@ -40,11 +40,57 @@ select lives_ok(
   'owner can restore the original timer entry'
 );
 
-select throws_ok(
+select lives_ok(
   $$ update public.time_entries set manually_adjusted = true where id = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' $$,
+  'legacy corrected timers may have no original snapshot'
+);
+
+select results_eq(
+  $$ select manually_adjusted and correction_original_task_id is null and correction_original_local_date is null and correction_original_duration_seconds is null and duration_seconds = 3600 from public.time_entries where id = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' $$,
+  array[true],
+  'legacy correction retains its duration and adjusted flag without inventing originals'
+);
+
+select throws_ok(
+  $$ update public.time_entries set correction_original_task_id = task_id where id = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' $$,
   '23514',
   null,
-  'a corrected timer entry requires a complete original snapshot'
+  'a task-only original snapshot is rejected'
+);
+
+select throws_ok(
+  $$ update public.time_entries set correction_original_local_date = local_date where id = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' $$,
+  '23514',
+  null,
+  'a date-only original snapshot is rejected'
+);
+
+select throws_ok(
+  $$ update public.time_entries set correction_original_duration_seconds = duration_seconds where id = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' $$,
+  '23514',
+  null,
+  'a duration-only original snapshot is rejected'
+);
+
+select throws_ok(
+  $$ update public.time_entries set correction_original_task_id = task_id, correction_original_local_date = local_date where id = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' $$,
+  '23514',
+  null,
+  'an original snapshot missing its duration is rejected'
+);
+
+select throws_ok(
+  $$ update public.time_entries set correction_original_task_id = task_id, correction_original_duration_seconds = duration_seconds where id = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' $$,
+  '23514',
+  null,
+  'an original snapshot missing its date is rejected'
+);
+
+select throws_ok(
+  $$ update public.time_entries set correction_original_local_date = local_date, correction_original_duration_seconds = duration_seconds where id = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' $$,
+  '23514',
+  null,
+  'an original snapshot missing its task is rejected'
 );
 
 select throws_ok(
