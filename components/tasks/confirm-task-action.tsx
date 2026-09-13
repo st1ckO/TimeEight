@@ -11,6 +11,7 @@ export function ConfirmTaskAction({
   confirmLabel,
   cancelLabel = "Cancel",
   eyebrow,
+  compact = false,
   onConfirm,
 }: {
   open: boolean;
@@ -20,6 +21,7 @@ export function ConfirmTaskAction({
   confirmLabel: string;
   cancelLabel?: string;
   eyebrow?: string;
+  compact?: boolean;
   onConfirm(): Promise<void>;
 }) {
   const cancelButton = useRef<HTMLButtonElement>(null);
@@ -53,7 +55,11 @@ export function ConfirmTaskAction({
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
         <Dialog.Content
-          className="dialog-content task-dialog"
+          className={[
+            "dialog-content",
+            "task-dialog",
+            compact ? "confirm-compact" : "",
+          ].join(" ")}
           onOpenAutoFocus={(event) => {
             event.preventDefault();
             cancelButton.current?.focus();
