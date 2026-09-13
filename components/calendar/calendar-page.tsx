@@ -21,7 +21,12 @@ import {
 import { useMemo, useRef, useState } from "react";
 import { useTimeEight } from "@/components/app/app-provider";
 import { ProgressRing } from "@/components/ui/progress-ring";
-import { formatDuration, goalForDate } from "@/lib/domain/time";
+import {
+  formatDuration,
+  formatSignedDuration,
+  goalForDate,
+} from "@/lib/domain/time";
+import { historyOverLimitSeconds } from "@/lib/domain/limit-display";
 import { canRevertTimeEntryCorrection } from "@/lib/domain/corrections";
 import type { TimeEntry } from "@/lib/domain/types";
 import { EntryDialog } from "./entry-dialog";
@@ -75,6 +80,10 @@ export function CalendarPage() {
       return historyOrder === "latest" ? -chronological : chronological;
     });
   const tasksById = new Map(app.tasks.map((task) => [task.id, task]));
+  const overLimitByEntry = useMemo(
+    () => historyOverLimitSeconds(app.entries, app.tasks, app.taskDailyTargets),
+    [app.entries, app.tasks, app.taskDailyTargets],
+  );
 
   function shiftMonth(amount: number) {
     const date = fromKey(`${month}-01`);
@@ -317,7 +326,24 @@ export function CalendarPage() {
                       )}
                     </div>
                   </div>
-                  <strong>{formatDuration(entry.durationSeconds)}</strong>
+                  <strong
+                    className={
+                      overLimitByEntry.has(entry.id)
+                        ? "negative-duration"
+                        : undefined
+                    }
+                    title={
+                      overLimitByEntry.has(entry.id)
+                        ? `${formatDuration(entry.durationSeconds)} tracked; ${formatDuration(overLimitByEntry.get(entry.id)!)} over the daily limit`
+                        : undefined
+                    }
+                  >
+                    {formatSignedDuration(
+                      overLimitByEntry.has(entry.id)
+                        ? -overLimitByEntry.get(entry.id)!
+                        : entry.durationSeconds,
+                    )}
+                  </strong>
                   <DropdownMenu.Root>
                     <DropdownMenu.Trigger asChild>
                       <button

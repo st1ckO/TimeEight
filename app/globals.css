@@ -11,6 +11,7 @@
   --line: #dedfd8;
   --teal: #197c67;
   --teal-soft: #dcefe9;
+  --negative-duration: #bd3f3f;
   --amber: #d58c33;
   --amber-soft: #f8ead5;
   --tooltip-bg: #17211d;
@@ -30,6 +31,7 @@
     --line: #2e3933;
     --teal: #55c6a6;
     --teal-soft: #18382f;
+    --negative-duration: #ff9292;
     --amber: #efb665;
     --amber-soft: #3d2f1d;
     --tooltip-bg: #070a08;
@@ -50,6 +52,7 @@
   --line: #dedfd8;
   --teal: #197c67;
   --teal-soft: #dcefe9;
+  --negative-duration: #bd3f3f;
   --amber: #d58c33;
   --amber-soft: #f8ead5;
   --tooltip-bg: #17211d;
@@ -69,6 +72,7 @@
   --line: #2e3933;
   --teal: #55c6a6;
   --teal-soft: #18382f;
+  --negative-duration: #ff9292;
   --amber: #efb665;
   --amber-soft: #3d2f1d;
   --tooltip-bg: #070a08;
@@ -2746,6 +2750,11 @@ h3 {
 }
 .backup-import-dialog input[type="file"]:hover::file-selector-button {
   background: color-mix(in srgb, var(--teal-soft) 85%, var(--teal));
+}
+.task-time .negative-duration,
+.active-timer-duration.negative-duration,
+.history-entry .negative-duration {
+  color: var(--negative-duration);
 }
 .backup-import-preview {
   margin: 0 0 20px;

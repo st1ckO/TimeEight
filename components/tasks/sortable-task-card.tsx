@@ -17,7 +17,11 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { ActiveTimer, Task } from "@/lib/domain/types";
-import { formatDuration, taskDisplaySeconds } from "@/lib/domain/time";
+import {
+  formatDuration,
+  formatSignedDuration,
+  taskDisplaySeconds,
+} from "@/lib/domain/time";
 import { useTimeEight } from "@/components/app/app-provider";
 import { TaskDialog } from "./task-dialog";
 import { ConfirmTaskAction } from "./confirm-task-action";
@@ -126,9 +130,13 @@ export function SortableTaskCard({
           </div>
         </div>
         <div className="task-time">
-          <strong>
-            {formatDuration(displaySeconds, { clock: Boolean(timer) })}
-            {task.goalKind === "limit" && !timer ? " left" : ""}
+          <strong
+            className={displaySeconds < 0 ? "negative-duration" : undefined}
+          >
+            {formatSignedDuration(displaySeconds, { clock: Boolean(timer) })}
+            {task.goalKind === "limit" && !timer && displaySeconds >= 0
+              ? " left"
+              : ""}
           </strong>
           <button
             type="button"

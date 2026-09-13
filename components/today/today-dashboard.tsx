@@ -24,6 +24,8 @@ import {
   elapsedSeconds,
   DAILY_GOAL_SECONDS,
   formatDuration,
+  formatSignedDuration,
+  taskDisplaySeconds,
 } from "@/lib/domain/time";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { StreakBadge } from "@/components/ui/streak-badge";
@@ -199,6 +201,19 @@ export function TodayDashboard() {
             >
               {app.activeTimers.map((timer) => {
                 const task = app.tasks.find((task) => task.id === timer.taskId);
+                const displaySeconds =
+                  task?.goalKind === "limit"
+                    ? taskDisplaySeconds(
+                        "limit",
+                        (trackedByTask.get(task.id) ?? 0) +
+                          elapsedSecondsForDate(timer, app.today, app.now),
+                        taskTargetForDate(
+                          task,
+                          app.taskDailyTargets,
+                          app.today,
+                        ),
+                      )
+                    : elapsedSeconds(timer, app.now);
                 return (
                   <li key={timer.id}>
                     <span
@@ -210,10 +225,18 @@ export function TodayDashboard() {
                       <strong title={task?.name ?? "Task timer"}>
                         {task?.name ?? "Task timer"}
                       </strong>
-                      <span>Current session</span>
+                      {displaySeconds >= 0 && (
+                        <span>
+                          {task?.goalKind === "limit"
+                            ? "Time remaining"
+                            : "Current session"}
+                        </span>
+                      )}
                     </div>
-                    <span className="active-timer-duration">
-                      {formatDuration(elapsedSeconds(timer, app.now), {
+                    <span
+                      className={`active-timer-duration ${displaySeconds < 0 ? "negative-duration" : ""}`}
+                    >
+                      {formatSignedDuration(displaySeconds, {
                         clock: true,
                       })}
                     </span>

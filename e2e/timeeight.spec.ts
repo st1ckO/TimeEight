@@ -932,9 +932,66 @@ test("centers the reached-limit confirmation and continues only by choice", asyn
   await trigger.click();
   await page.getByRole("button", { name: "Continue anyway" }).click();
   await expect(page.getByRole("dialog")).toBeHidden();
+  const running = page
+    .locator(".active-timers-list li")
+    .filter({ hasText: "Watch list" });
+  await expect(running.locator(".active-timer-duration")).toHaveText(
+    /^−\d{2}:\d{2}:\d{2}$/,
+  );
+  await expect(running).not.toContainText("Over limit");
+  await expect(running.locator(".active-timer-duration")).toHaveClass(
+    /negative-duration/,
+  );
+  // Let a positive continued duration accrue before pausing it.
+  await expect(running.locator(".active-timer-duration")).toHaveText(
+    /^−01:00:0[2-9]$/,
+  );
+  await expect(
+    page
+      .locator(".task-card")
+      .filter({
+        has: page.getByRole("heading", { name: "Watch list", exact: true }),
+      })
+      .locator(".task-time strong"),
+  ).toHaveText(/^−\d{2}:\d{2}:\d{2}$/);
   await page
     .getByRole("button", { name: "Pause Watch list", exact: true })
     .click();
+  await page
+    .getByRole("link", { name: "Calendar", exact: true })
+    .first()
+    .click();
+  const extra = page
+    .locator(".history-entry")
+    .filter({ hasText: "Watch list" })
+    .filter({ has: page.locator(".negative-duration") });
+  await expect(extra).toHaveCount(1);
+  await expect(extra).not.toContainText("Over limit");
+  await expect(extra.locator("strong")).toContainText(/^−/);
+  await expect(
+    page
+      .locator(".history-entry")
+      .filter({ hasText: "Manual addition" })
+      .locator("strong"),
+  ).toHaveText("2h 0m");
+  await extra.screenshot({
+    path: testInfo.outputPath("negative-limit-history.png"),
+  });
+  for (const theme of ["light", "dark"]) {
+    await page.evaluate(
+      (theme) => (document.documentElement.dataset.theme = theme),
+      theme,
+    );
+    await page.waitForTimeout(400);
+    await expect(extra.locator("strong")).toHaveCSS(
+      "color",
+      theme === "light" ? "rgb(189, 63, 63)" : "rgb(255, 146, 146)",
+    );
+    expect(
+      (await new AxeBuilder({ page }).include(".history-list").analyze())
+        .violations,
+    ).toEqual([]);
+  }
 });
 
 test("gives shared task actions a subtle hover lift", async ({
