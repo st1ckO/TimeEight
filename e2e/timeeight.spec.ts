@@ -4,6 +4,7 @@ import { expect, test } from "@playwright/test";
 test("saves settings only when preferences change", async ({
   page,
 }, testInfo) => {
+  test.setTimeout(60_000);
   await page
     .getByRole("link", { name: "Settings", exact: true })
     .first()
@@ -14,18 +15,54 @@ test("saves settings only when preferences change", async ({
   const save = page.getByRole("button", { name: "Save changes", exact: true });
   const name = page.getByLabel("Display name", { exact: true });
   const originalName = await name.inputValue();
-  const timezone = page.getByRole("combobox", { name: /Timezone/ });
-  const originalTimezone = await timezone.inputValue();
+  const timezone = page.getByRole("button", { name: "Timezone", exact: true });
+  const originalTimezone = await timezone.innerText();
   await expect(save).toBeDisabled();
   await name.fill(originalName + " edited");
   await expect(save).toBeEnabled();
   await name.fill(originalName);
   await expect(save).toBeDisabled();
-  await timezone.selectOption(
-    originalTimezone === "UTC" ? "Asia/Manila" : "UTC",
-  );
+  const triggerBounds = await timezone.boundingBox();
+  await timezone.click();
+  const menuBounds = await page.locator(".entry-task-menu").boundingBox();
+  expect(Math.abs(menuBounds!.x - triggerBounds!.x)).toBeLessThan(2);
+  expect(Math.abs(menuBounds!.width - triggerBounds!.width)).toBeLessThan(2);
+  expect(menuBounds!.height).toBeLessThanOrEqual(420);
+  await page.screenshot({ path: testInfo.outputPath("timezone-picker.png") });
+  expect(await page.getByRole("option").count()).toBeGreaterThan(30);
+  expect(await page.getByRole("option").count()).toBeLessThan(45);
+  await expect(
+    page.getByRole("group", { name: "Asia", exact: true }),
+  ).toBeVisible();
+  const search = page.getByRole("combobox", { name: "Search timezones" });
+  await search.fill("Chatham");
+  await expect(page.getByRole("option", { name: /Chatham/ })).toBeVisible();
+  await search.fill("not-a-timezone");
+  await expect(page.getByRole("option")).toHaveCount(0);
+  await expect(
+    page.getByText("No timezones found.", { exact: false }),
+  ).toBeVisible();
+  await search.fill("05:45");
+  await expect(
+    page.getByRole("option", { name: /Kat(h)?mandu/ }),
+  ).toBeVisible();
+  await search.press("Enter");
+  await expect(timezone).toContainText("UTC+05:45");
   await expect(save).toBeEnabled();
-  await timezone.selectOption(originalTimezone);
+  await page
+    .getByRole("button", { name: "Use device timezone", exact: true })
+    .click();
+  const deviceZone = await page.evaluate(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+  );
+  await expect(timezone).toContainText(deviceZone.replaceAll("_", " "));
+  await expect(
+    page.getByRole("button", { name: "Use device timezone", exact: true }),
+  ).toBeDisabled();
+  await timezone.click();
+  await page
+    .getByRole("option", { name: originalTimezone, exact: true })
+    .click();
   await expect(save).toBeDisabled();
   const selectedTheme = page.getByRole("radio", { checked: true });
   const originalTheme = await selectedTheme.inputValue();
@@ -57,6 +94,7 @@ test("saves settings only when preferences change", async ({
         (theme) => (document.documentElement.dataset.theme = theme),
         theme,
       );
+      await page.waitForTimeout(400);
       const scan = await new AxeBuilder({ page })
         .include(".settings-form")
         .analyze();
@@ -66,9 +104,16 @@ test("saves settings only when preferences change", async ({
           .locator(".settings-form")
           .evaluate((element) => element.scrollWidth <= element.clientWidth),
       ).toBe(true);
+      await timezone.click();
+      const pickerScan = await new AxeBuilder({ page })
+        .include(".timezone-search-menu")
+        .analyze();
+      expect(pickerScan.violations).toEqual([]);
       await page.screenshot({
         path: testInfo.outputPath(`settings-${width}-${theme}.png`),
       });
+      await page.keyboard.press("Escape");
+      await expect(timezone).toBeFocused();
     }
   }
 });

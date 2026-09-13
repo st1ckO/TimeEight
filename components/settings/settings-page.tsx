@@ -2,7 +2,8 @@
 
 import { Check, Download, LogOut, Save, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useId, useMemo, useState } from "react";
+import { TimezonePicker } from "@/components/settings/timezone-picker";
 import { useTimeEight } from "@/components/app/app-provider";
 import type { ThemePreference } from "@/lib/domain/types";
 import { clearLocalUser } from "@/lib/offline/db";
@@ -19,16 +20,97 @@ const zones = [
   "Asia/Manila",
   "Asia/Singapore",
   "Asia/Tokyo",
-  "Australia/Sydney",
+  "Asia/Seoul",
+  "Asia/Shanghai",
+  "Asia/Hong_Kong",
+  "Asia/Bangkok",
+  "Asia/Jakarta",
+  "Asia/Kolkata",
+  "Asia/Kathmandu",
+  "Asia/Dhaka",
+  "Asia/Dubai",
+  "Asia/Riyadh",
   "Europe/London",
+  "Europe/Paris",
+  "Europe/Berlin",
+  "Europe/Madrid",
+  "Europe/Rome",
+  "Europe/Athens",
+  "Europe/Moscow",
   "America/New_York",
   "America/Chicago",
+  "America/Denver",
   "America/Los_Angeles",
+  "America/Phoenix",
+  "America/Anchorage",
+  "America/Toronto",
+  "America/Mexico_City",
+  "America/Sao_Paulo",
+  "America/Argentina/Buenos_Aires",
+  "Africa/Cairo",
+  "Africa/Johannesburg",
+  "Africa/Lagos",
+  "Africa/Nairobi",
+  "Australia/Sydney",
+  "Australia/Adelaide",
+  "Australia/Perth",
+  "Pacific/Auckland",
+  "Pacific/Honolulu",
   "UTC",
+];
+const timezoneRegions = [
+  "Asia",
+  "Europe",
+  "Americas",
+  "Africa",
+  "Australia & Pacific",
+  "UTC",
+  "Other",
 ];
 
 export function SettingsPage() {
   const app = useTimeEight();
+  const timezoneLabelId = useId();
+  const deviceTimezone =
+    app.now > 0 ? Intl.DateTimeFormat().resolvedOptions().timeZone : "";
+  const offsetMinute = Math.floor(app.now / 60_000);
+  const timezoneOptions = useMemo(() => {
+    const now = new Date(offsetMinute * 60_000);
+    const available =
+      typeof Intl.supportedValuesOf === "function"
+        ? Intl.supportedValuesOf("timeZone")
+        : zones;
+    return [
+      ...new Set([
+        app.profile.timezone,
+        ...available,
+        "UTC",
+        ...(deviceTimezone ? [deviceTimezone] : []),
+      ]),
+    ]
+      .sort()
+      .map((value) => {
+        const offset =
+          new Intl.DateTimeFormat("en", {
+            timeZone: value,
+            timeZoneName: "longOffset",
+          })
+            .formatToParts(now)
+            .find((part) => part.type === "timeZoneName")
+            ?.value.replace("GMT", "UTC") ?? "UTC";
+        return {
+          value,
+          region: value.startsWith("America/")
+            ? "Americas"
+            : /^(Australia|Pacific)\//.test(value)
+              ? "Australia & Pacific"
+              : timezoneRegions.includes(value.split("/")[0] ?? "Other")
+                ? (value.split("/")[0] ?? "Other")
+                : "Other",
+          label: `${value.replaceAll("_", " ")} (${offset === "UTC" ? "UTC+00:00" : offset})`,
+        };
+      });
+  }, [app.profile.timezone, offsetMinute, deviceTimezone]);
   const router = useRouter();
   const [nameOverride, setNameOverride] = useState<string | null>(null);
   const [timezoneOverride, setTimezoneOverride] = useState<string | null>(null);
@@ -141,23 +223,43 @@ export function SettingsPage() {
               maxLength={80}
             />
           </label>
-          <label>
-            Timezone
-            <select
+          <div className="entry-task-field">
+            <span id={timezoneLabelId}>Timezone</span>
+            <TimezonePicker
               value={timezone}
+              options={timezoneOptions}
+              commonZones={[...zones, deviceTimezone]}
+              labelId={timezoneLabelId}
               disabled={saving}
-              onChange={(event) => {
-                setTimezoneOverride(event.target.value);
+              onChange={(value) => {
+                setTimezoneOverride(value);
                 setMessage(null);
                 setSaved(false);
               }}
+            />
+            <button
+              type="button"
+              className="timezone-device"
+              disabled={
+                saving || !deviceTimezone || timezone === deviceTimezone
+              }
+              onClick={() => {
+                setTimezoneOverride(deviceTimezone);
+                setMessage(null);
+                setSaved(false);
+              }}
+              title={deviceTimezone}
             >
-              {[...new Set([timezone, ...zones])].map((zone) => (
-                <option key={zone}>{zone}</option>
-              ))}
-            </select>
-            <small>Changes apply only to future tracking.</small>
-          </label>
+              Use device timezone
+            </button>
+            {deviceTimezone && (
+              <small>Detected: {deviceTimezone.replaceAll("_", " ")}</small>
+            )}
+            <small id="timezone-help">
+              Changes apply only to future tracking. Offsets shown are current
+              and may change with daylight saving time.
+            </small>
+          </div>
           <fieldset className="settings-theme-field" disabled={saving}>
             <legend>Theme</legend>
             <div className="settings-theme-options">

@@ -2590,3 +2590,77 @@ h3 {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+.timezone-region {
+  padding: 12px 12px 4px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+.timezone-device {
+  justify-self: start;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.78rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.timezone-device:disabled {
+  color: var(--muted);
+  cursor: default;
+  text-decoration: none;
+}
+
+.timezone-search-menu {
+  width: var(--radix-popover-trigger-width);
+  max-height: min(420px, var(--radix-popover-content-available-height));
+  display: flex;
+  flex-direction: column;
+}
+.timezone-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.timezone-search input {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 0.82rem;
+}
+.timezone-search-hint {
+  margin: 4px 10px 8px;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.timezone-search-results {
+  overflow: auto;
+  min-height: 0;
+}
+.timezone-search-option {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: var(--ink);
+}
+.timezone-search-option > span:first-child {
+  position: static;
+  display: block;
+}
+.timezone-search-option svg {
+  position: absolute;
+  right: 12px;
+}
