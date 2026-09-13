@@ -66,6 +66,13 @@ import {
   syncPendingMutations,
 } from "@/lib/offline/sync";
 
+import {
+  restoreSnapshotSchema,
+  prepareBackup,
+  type Backup,
+} from "@/lib/domain/backup";
+import { withUserDataLock } from "@/lib/offline/user-data-lock";
+
 const palette = ["#197c67", "#5577dc", "#d58c33", "#a45cc4", "#d86464"];
 
 function todayKey(timezone: string) {
@@ -138,6 +145,7 @@ interface AppContextValue {
     onboardingCompleted?: boolean;
   }): Promise<void>;
   clearUserData(): Promise<void>;
+  restoreBackup(input: Backup): Promise<void>;
   dismissNotice(): void;
 }
 
@@ -249,6 +257,7 @@ export function AppProvider({
   );
   const [notice, setNotice] = useState<string | null>(null);
   const activeRef = useRef(activeTimers);
+  const restoringRef = useRef(false);
 
   useEffect(() => {
     activeRef.current = activeTimers;
@@ -276,7 +285,8 @@ export function AppProvider({
     async function hydrate() {
       const db = getLocalDatabase();
       if (!db) return setHydrated(true);
-      let storedProfile = (await db.profiles.get(userId)) ?? {
+      const existingProfile = await db.profiles.get(userId);
+      let storedProfile = existingProfile ?? {
         ...initialProfile,
         accountStart: initialAccountStart,
       };
@@ -436,7 +446,7 @@ export function AppProvider({
           await queue(userId, "goal-upsert", { ...goal });
         }
       }
-      if (storedTasks.length === 0) {
+      if (storedTasks.length === 0 && !existingProfile && !remoteAfter) {
         storedTasks = seedTasks(userId);
         for (const task of storedTasks)
           await queue(
@@ -509,6 +519,7 @@ export function AppProvider({
 
   const pauseTimer = useCallback(
     async (taskId: string, recovered = false, preserveElapsed = false) => {
+      if (restoringRef.current) return;
       const timer = activeRef.current.find((item) => item.taskId === taskId);
       if (!timer) return;
       const endedAt = new Date().toISOString();
@@ -598,6 +609,7 @@ export function AppProvider({
 
   useEffect(() => {
     const onPageHide = () => {
+      if (restoringRef.current) return;
       const timerIds = activeRef.current.map((timer) => timer.id);
       if (timerIds.length > 0 && userId !== "local-demo") {
         void fetch("/api/timers/pause", {
@@ -610,6 +622,7 @@ export function AppProvider({
       void pauseAll();
     };
     const onOnline = () => {
+      if (restoringRef.current) return;
       if (userId !== "local-demo")
         void syncPendingMutations(userId).then((result) =>
           setSyncState(result.error ? "error" : "synced"),
@@ -630,6 +643,7 @@ export function AppProvider({
     const db = getLocalDatabase();
     if (!db || activeTimers.length === 0) return;
     const checkpoint = window.setInterval(() => {
+      if (restoringRef.current) return;
       const checkpointedAt = new Date().toISOString();
       const next = activeRef.current.map((timer) => ({
         ...timer,
@@ -1022,6 +1036,100 @@ export function AppProvider({
     );
   }
 
+  async function restoreBackup(input: Backup) {
+    if (!hydrated)
+      throw new Error("Wait for your account data to finish loading.");
+    if (restoringRef.current) throw new Error("Restore is already running.");
+    const db = getLocalDatabase();
+    if (!db) throw new Error("Local storage is unavailable.");
+    const prepared = prepareBackup(input, userId, profile.accountStart);
+    if (userId !== "local-demo" && !navigator.onLine)
+      throw new Error("Connect to the internet to restore this account.");
+    restoringRef.current = true;
+    try {
+      await withUserDataLock(userId, async () => {
+        let snapshot = prepared;
+        let remoteRestored = false;
+        if (userId !== "local-demo") {
+          const response = await fetch("/api/account/import", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "x-timeeight-confirm": "CONFIRM",
+            },
+            body: JSON.stringify(input),
+          });
+          const result: unknown = await response.json();
+          if (!response.ok)
+            throw new Error(
+              "Restore failed. Your existing data has not been replaced.",
+            );
+          snapshot = restoreSnapshotSchema.parse(result);
+          remoteRestored = true;
+        }
+        try {
+          await db.transaction(
+            "rw",
+            [
+              db.profiles,
+              db.dailyGoals,
+              db.tasks,
+              db.taskDailyTargets,
+              db.activeTimers,
+              db.timeEntries,
+              db.pendingMutations,
+            ],
+            async () => {
+              await db.profiles.delete(userId);
+              await Promise.all(
+                [
+                  db.dailyGoals,
+                  db.tasks,
+                  db.taskDailyTargets,
+                  db.activeTimers,
+                  db.timeEntries,
+                  db.pendingMutations,
+                ].map((table) => table.where("userId").equals(userId).delete()),
+              );
+              await db.profiles.put({
+                ...snapshot.profile,
+                accountStart:
+                  snapshot.profile.accountStart ?? profile.accountStart,
+              });
+              await db.dailyGoals.bulkPut(snapshot.dailyGoals);
+              await db.tasks.bulkPut(snapshot.tasks);
+              await db.taskDailyTargets.bulkPut(snapshot.taskDailyTargets);
+              await db.timeEntries.bulkPut(snapshot.entries);
+            },
+          );
+        } catch (error) {
+          if (remoteRestored) {
+            activeRef.current = [];
+            setActiveTimers([]);
+            await clearLocalUser(userId);
+            window.location.reload();
+          }
+          throw error;
+        }
+        activeRef.current = [];
+        targetsRef.current = snapshot.taskDailyTargets;
+        setActiveTimers([]);
+        setProfile({
+          ...snapshot.profile,
+          accountStart: snapshot.profile.accountStart ?? profile.accountStart,
+        });
+        setDailyGoals(snapshot.dailyGoals);
+        setTasks(snapshot.tasks);
+        setTaskDailyTargets(snapshot.taskDailyTargets);
+        setEntries(snapshot.entries);
+        setNotice(null);
+        setSyncState(userId === "local-demo" ? "local" : "synced");
+      });
+    } finally {
+      restoringRef.current = false;
+    }
+  }
+
   async function clearUserData() {
     await pauseAll();
     await clearLocalUser(userId);
@@ -1075,6 +1183,7 @@ export function AppProvider({
     deleteEntry,
     updateProfile,
     clearUserData,
+    restoreBackup,
     dismissNotice: () => setNotice(null),
   };
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

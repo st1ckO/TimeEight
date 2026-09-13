@@ -1,5 +1,272 @@
+import { readFile } from "node:fs/promises";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+
+test("restores exported JSON only after full overwrite confirmation", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page.goto("/settings");
+  const originalName = await page
+    .getByLabel("Display name", { exact: true })
+    .inputValue();
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export JSON", exact: true }).click();
+  const download = await downloading;
+  const original = await readFile((await download.path())!);
+  const parsed = JSON.parse(original.toString());
+  expect(parsed.tasks.length).toBeGreaterThan(0);
+  expect(parsed.schemaVersion).toBe(2);
+  expect(parsed).not.toHaveProperty("dailyGoals");
+  const empty = {
+    ...parsed,
+    profile: { ...parsed.profile, displayName: "Restored empty" },
+    tasks: [],
+    entries: [],
+    taskDailyTargets: [],
+  };
+  await page.getByRole("link", { name: "Today", exact: true }).first().click();
+  await page
+    .getByRole("button", { name: "Start Morning walk", exact: true })
+    .click();
+  await page
+    .getByRole("link", { name: "Settings", exact: true })
+    .first()
+    .click();
+  const trigger = page.getByRole("button", {
+    name: "Import JSON",
+    exact: true,
+  });
+  await trigger.click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Backup file").setInputFiles({
+    name: "invalid.json",
+    mimeType: "application/json",
+    buffer: Buffer.from('{"schemaVersion":99}'),
+  });
+  await expect(dialog.getByRole("alert")).toContainText(
+    "not a valid TimeEight",
+  );
+  await expect(
+    dialog.getByRole("button", { name: "Review overwrite" }),
+  ).toBeDisabled();
+  await dialog.getByLabel("Backup file").setInputFiles({
+    name: "empty-backup.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(empty)),
+  });
+  await dialog.getByRole("button", { name: "Review overwrite" }).click();
+  await expect(dialog).toContainText("ALL current settings");
+  await dialog.getByRole("button", { name: "Replace all data" }).click();
+  const confirmation = dialog.getByLabel("Type CONFIRM to overwrite all data");
+  await confirmation.fill("confirm");
+  await confirmation.press("Enter");
+  await expect(
+    dialog.getByRole("button", { name: "Overwrite and restore" }),
+  ).toBeDisabled();
+  await expect(page.getByLabel("Display name", { exact: true })).toHaveValue(
+    originalName,
+  );
+  await confirmation.fill("CONFIRM");
+  await dialog.getByRole("button", { name: "Overwrite and restore" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(
+    page.getByRole("status").filter({ hasText: "Backup restored" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Display name", { exact: true })).toHaveValue(
+    "Restored empty",
+  );
+  await page.getByRole("link", { name: "Today", exact: true }).first().click();
+  await expect(
+    page.getByText("No timers running", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Start Morning walk", exact: true }),
+  ).toHaveCount(0);
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "Start Morning walk", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("link", { name: "Settings", exact: true })
+    .first()
+    .click();
+  await trigger.click();
+  await dialog.getByLabel("Backup file").setInputFiles({
+    name: "original-backup.json",
+    mimeType: "application/json",
+    buffer: original,
+  });
+  await dialog.getByRole("button", { name: "Review overwrite" }).click();
+  await dialog.getByRole("button", { name: "Replace all data" }).click();
+  await confirmation.fill("CONFIRM");
+  await dialog.getByRole("button", { name: "Overwrite and restore" }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByLabel("Display name", { exact: true })).toHaveValue(
+    originalName,
+  );
+  await page.getByRole("link", { name: "Today", exact: true }).first().click();
+  await expect(
+    page.getByRole("button", { name: "Start Morning walk", exact: true }),
+  ).toHaveCount(1);
+});
+
+test("shows accessible overwrite warnings at every import step", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(60_000);
+  await page.goto("/settings");
+  const backup = {
+    schemaVersion: 1,
+    exportedAt: "2026-09-13T12:00:00Z",
+    profile: {
+      id: "local-demo",
+      displayName: "Test backup",
+      timezone: "UTC",
+      theme: "system",
+      onboardingCompleted: true,
+    },
+    tasks: [],
+    dailyGoals: [],
+    entries: [],
+  };
+  const trigger = page.getByRole("button", {
+    name: "Import JSON",
+    exact: true,
+  });
+  for (const width of [1500, 320]) {
+    await page.setViewportSize({ width, height: 950 });
+    for (const theme of ["light", "dark"]) {
+      await page.evaluate(
+        (theme) => (document.documentElement.dataset.theme = theme),
+        theme,
+      );
+      await page.waitForTimeout(400);
+      await trigger.click();
+      const dialog = page.getByRole("dialog");
+      await expect(
+        dialog.getByRole("button", { name: "Cancel" }),
+      ).toBeFocused();
+      await dialog.getByLabel("Backup file").setInputFiles({
+        name: "backup.json",
+        mimeType: "application/json",
+        buffer: Buffer.from(JSON.stringify(backup)),
+      });
+      for (const step of [1, 2, 3]) {
+        await page.waitForTimeout(400);
+        expect(
+          (
+            await new AxeBuilder({ page })
+              .include(".backup-import-dialog")
+              .analyze()
+          ).violations,
+        ).toEqual([]);
+        expect(
+          await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth),
+        ).toBe(true);
+        await page.screenshot({
+          path: testInfo.outputPath(
+            "import-" + width + "-" + theme + "-step" + step + ".png",
+          ),
+        });
+        if (step === 1)
+          await dialog
+            .getByRole("button", { name: "Review overwrite" })
+            .click();
+        if (step === 2)
+          await dialog
+            .getByRole("button", { name: "Replace all data" })
+            .click();
+      }
+      await expect(
+        dialog.getByLabel("Type CONFIRM to overwrite all data"),
+      ).toBeFocused();
+      await dialog.getByRole("button", { name: "Cancel" }).click();
+      await expect(trigger).toBeFocused();
+    }
+  }
+});
+
+test("requires confirmation before signing out and allows returning to the demo", async ({
+  page,
+}) => {
+  await page.goto("/settings");
+  const name = page.getByLabel("Display name", { exact: true });
+  await name.fill("Sign-out test");
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  const trigger = page.getByRole("button", { name: "Sign out", exact: true });
+  await trigger.click();
+  const dialog = page.getByRole("dialog", { name: "Sign out?", exact: true });
+  await expect(dialog).toContainText("your changes will be lost");
+  await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
+  expect(
+    (await new AxeBuilder({ page }).include(".confirm-compact").analyze())
+      .violations,
+  ).toEqual([]);
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(trigger).toBeFocused();
+  await expect(name).toHaveValue("Sign-out test");
+  await trigger.click();
+  await dialog.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect(page).toHaveURL(/\/login$/, { timeout: 15_000 });
+  await page.getByRole("link", { name: /Explore the local demo/ }).click();
+  await expect(page).toHaveURL(/\/today$/);
+});
+
+test("confirms account deletion in a compact two-step popup", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(60_000);
+  await page.goto("/settings");
+  const trigger = page.getByRole("button", {
+    name: "Delete account",
+    exact: true,
+  });
+  for (const width of [1500, 320]) {
+    await page.setViewportSize({ width, height: 950 });
+    for (const theme of ["light", "dark"]) {
+      await page.evaluate(
+        (theme) => (document.documentElement.dataset.theme = theme),
+        theme,
+      );
+      await page.waitForTimeout(400);
+      await trigger.click();
+      const dialog = page.getByRole("dialog");
+      await expect(
+        dialog.getByRole("button", { name: "Cancel" }),
+      ).toBeFocused();
+      await dialog.getByRole("button", { name: "Continue" }).click();
+      const input = dialog.getByLabel("Type DELETE to confirm");
+      await expect(input).toBeFocused();
+      await expect(
+        dialog.getByRole("button", { name: "Delete permanently" }),
+      ).toBeDisabled();
+      await input.fill("DELETE");
+      await expect(
+        dialog.getByRole("button", { name: "Delete permanently" }),
+      ).toBeEnabled();
+      expect(
+        (
+          await new AxeBuilder({ page })
+            .include(".account-delete-dialog")
+            .analyze()
+        ).violations,
+      ).toEqual([]);
+      expect(
+        await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth),
+      ).toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(
+          "delete-account-" + width + "-" + theme + ".png",
+        ),
+      });
+      await dialog.getByRole("button", { name: "Cancel" }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect(trigger).toBeFocused();
+    }
+  }
+});
 
 test("saves settings only when preferences change", async ({
   page,

@@ -1,8 +1,11 @@
 "use client";
 
-import { Check, Download, LogOut, Save, Trash2 } from "lucide-react";
+import { Check, Download, LogOut, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
+import { ConfirmTaskAction } from "@/components/tasks/confirm-task-action";
+import { ImportBackupDialog } from "@/components/settings/import-backup-dialog";
+import { DeleteAccountDialog } from "@/components/settings/delete-account-dialog";
 import { TimezonePicker } from "@/components/settings/timezone-picker";
 import { useTimeEight } from "@/components/app/app-provider";
 import type { ThemePreference } from "@/lib/domain/types";
@@ -112,6 +115,8 @@ export function SettingsPage() {
       });
   }, [app.profile.timezone, offsetMinute, deviceTimezone]);
   const router = useRouter();
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const signOutButton = useRef<HTMLButtonElement>(null);
   const [nameOverride, setNameOverride] = useState<string | null>(null);
   const [timezoneOverride, setTimezoneOverride] = useState<string | null>(null);
   const [themeOverride, setThemeOverride] = useState<ThemePreference | null>(
@@ -120,7 +125,6 @@ export function SettingsPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const name = nameOverride ?? app.profile.displayName;
   const timezone = timezoneOverride ?? app.profile.timezone;
   const theme = themeOverride ?? app.profile.theme;
@@ -151,10 +155,9 @@ export function SettingsPage() {
 
   function exportData() {
     const payload = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       exportedAt: new Date().toISOString(),
       profile: app.profile,
-      dailyGoals: app.dailyGoals,
       tasks: app.tasks,
       taskDailyTargets: app.taskDailyTargets,
       entries: app.entries,
@@ -187,10 +190,7 @@ export function SettingsPage() {
       method: "DELETE",
       headers: { "x-timeeight-confirm": "delete" },
     });
-    if (!response.ok)
-      return setMessage(
-        "Account deletion could not be completed. Please try again.",
-      );
+    if (!response.ok) throw new Error("Account deletion failed");
     await clearLocalUser(app.userId);
     router.push("/login?deleted=1");
     router.refresh();
@@ -327,11 +327,30 @@ export function SettingsPage() {
               history.
             </p>
           </div>
-          <button className="secondary-button" onClick={exportData}>
+          <button
+            className="secondary-button"
+            disabled={!app.hydrated}
+            onClick={exportData}
+          >
             <Download size={18} />
             Export JSON
           </button>
-          <button className="secondary-button" onClick={() => void signOut()}>
+          <ImportBackupDialog
+            disabled={!app.hydrated}
+            onRestore={async (backup) => {
+              await app.restoreBackup(backup);
+              setNameOverride(null);
+              setTimezoneOverride(null);
+              setThemeOverride(null);
+              setSaved(false);
+              setMessage(null);
+            }}
+          />
+          <button
+            ref={signOutButton}
+            className="secondary-button"
+            onClick={() => setConfirmSignOut(true)}
+          >
             <LogOut size={18} />
             Sign out
           </button>
@@ -342,35 +361,25 @@ export function SettingsPage() {
               This permanently removes the account and its synchronized records.
             </p>
           </div>
-          {!confirmDelete ? (
-            <button
-              className="danger-button"
-              onClick={() => setConfirmDelete(true)}
-            >
-              <Trash2 size={18} />
-              Delete account
-            </button>
-          ) : (
-            <div className="delete-confirm" role="alert">
-              <strong>This cannot be undone.</strong>
-              <div>
-                <button
-                  className="secondary-button"
-                  onClick={() => setConfirmDelete(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="danger-button"
-                  onClick={() => void deleteAccount()}
-                >
-                  Delete forever
-                </button>
-              </div>
-            </div>
-          )}
+          <DeleteAccountDialog onDelete={deleteAccount} />
         </aside>
       </div>
+      <ConfirmTaskAction
+        open={confirmSignOut}
+        onOpenChange={setConfirmSignOut}
+        compact
+        title="Sign out?"
+        description={
+          app.userId === "local-demo"
+            ? "Running timers will pause. This clears your demo tasks, settings, and history from this device. You can reopen the local demo, but your changes will be lost."
+            : "Running timers will pause and local data will be cleared from this device. Synced data stays in your account; unsynced changes may be lost. You can sign in again."
+        }
+        confirmLabel="Sign out"
+        pendingLabel="Signing out…"
+        errorMessage="Couldn't sign out. Please try again."
+        returnFocusRef={signOutButton}
+        onConfirm={signOut}
+      />
     </>
   );
 }
