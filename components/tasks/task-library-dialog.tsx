@@ -189,7 +189,8 @@ export function TaskLibraryDialog({
           if (!next) setArchiving(null);
         }}
         title={`Archive ${archiving?.name ?? "task"}?`}
-        description="This removes the task from your daily list and moves it to Archived. Its tracked history is kept. Any running timer will stop and its elapsed time will be saved."
+        compact
+        description="Moves this task from your daily list to Archived. History is kept. Its running timer pauses; elapsed time will be saved."
         confirmLabel="Archive task"
         onConfirm={async () => {
           if (archiving) await app.archiveTask(archiving.id);

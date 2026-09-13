@@ -63,9 +63,7 @@ export function taskDisplaySeconds(
   trackedSeconds: number,
   targetSeconds: number,
 ): number {
-  return kind === "limit"
-    ? Math.max(0, targetSeconds - trackedSeconds)
-    : trackedSeconds;
+  return kind === "limit" ? targetSeconds - trackedSeconds : trackedSeconds;
 }
 
 export function formatDuration(
@@ -84,6 +82,13 @@ export function formatDuration(
   if (hours > 0) return `${hours}h ${minutes}m`;
   if (minutes > 0) return `${minutes}m`;
   return `${seconds}s`;
+}
+
+export function formatSignedDuration(
+  seconds: number,
+  options: { clock?: boolean } = {},
+): string {
+  return `${seconds < 0 ? "−" : ""}${formatDuration(Math.abs(seconds), options)}`;
 }
 
 export interface DurationSlice {

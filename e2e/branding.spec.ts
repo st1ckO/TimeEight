@@ -10,9 +10,13 @@ test("shows the fixed goal in onboarding and keeps Settings focused on preferenc
   await page.goto("/settings");
   await expect(page.getByText(/Daily ring goal/)).toHaveCount(0);
   await expect(page.getByRole("spinbutton")).toHaveCount(0);
-  await page.getByRole("button", { name: "Save settings" }).click();
   await expect(
-    page.getByRole("status").filter({ hasText: "Settings saved" }),
+    page.getByRole("button", { name: "Save changes" }),
+  ).toBeDisabled();
+  await page.getByLabel("Display name").fill("Ralph updated");
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(
+    page.getByRole("button", { name: "Saved", exact: true }),
   ).toBeVisible();
   expect(
     (

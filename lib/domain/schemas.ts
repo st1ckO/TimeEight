@@ -109,13 +109,12 @@ export const syncMutationSchema = z.object({
 });
 
 export const exportSchema = z.object({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.union([z.literal(1), z.literal(2)]),
   exportedAt: z.string().datetime({ offset: true }),
   profile: profileSchema.extend({
     id: z.string(),
     onboardingCompleted: z.boolean(),
   }),
-  dailyGoals: z.array(z.unknown()),
   tasks: z.array(z.unknown()),
   taskDailyTargets: z.array(z.unknown()).optional(),
   entries: z.array(z.unknown()),

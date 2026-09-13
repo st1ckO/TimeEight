@@ -1,5 +1,998 @@
+import { readFile } from "node:fs/promises";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+
+test("restores exported JSON only after full overwrite confirmation", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page.goto("/settings");
+  const originalName = await page
+    .getByLabel("Display name", { exact: true })
+    .inputValue();
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export JSON", exact: true }).click();
+  const download = await downloading;
+  const original = await readFile((await download.path())!);
+  const parsed = JSON.parse(original.toString());
+  expect(parsed.tasks.length).toBeGreaterThan(0);
+  expect(parsed.schemaVersion).toBe(2);
+  expect(parsed).not.toHaveProperty("dailyGoals");
+  const empty = {
+    ...parsed,
+    profile: { ...parsed.profile, displayName: "Restored empty" },
+    tasks: [],
+    entries: [],
+    taskDailyTargets: [],
+  };
+  await page.getByRole("link", { name: "Today", exact: true }).first().click();
+  await page
+    .getByRole("button", { name: "Start Morning walk", exact: true })
+    .click();
+  await page
+    .getByRole("link", { name: "Settings", exact: true })
+    .first()
+    .click();
+  const trigger = page.getByRole("button", {
+    name: "Import JSON",
+    exact: true,
+  });
+  await trigger.click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Backup file").setInputFiles({
+    name: "invalid.json",
+    mimeType: "application/json",
+    buffer: Buffer.from('{"schemaVersion":99}'),
+  });
+  await expect(dialog.getByRole("alert")).toContainText(
+    "not a valid TimeEight",
+  );
+  await expect(
+    dialog.getByRole("button", { name: "Review overwrite" }),
+  ).toBeDisabled();
+  await dialog.getByLabel("Backup file").setInputFiles({
+    name: "empty-backup.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(empty)),
+  });
+  await dialog.getByRole("button", { name: "Review overwrite" }).click();
+  await expect(dialog).toContainText("ALL current settings");
+  await dialog.getByRole("button", { name: "Replace all data" }).click();
+  const confirmation = dialog.getByLabel("Type CONFIRM to overwrite all data");
+  await confirmation.fill("confirm");
+  await confirmation.press("Enter");
+  await expect(
+    dialog.getByRole("button", { name: "Overwrite and restore" }),
+  ).toBeDisabled();
+  await expect(page.getByLabel("Display name", { exact: true })).toHaveValue(
+    originalName,
+  );
+  await confirmation.fill("CONFIRM");
+  await dialog.getByRole("button", { name: "Overwrite and restore" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(
+    page.getByRole("status").filter({ hasText: "Backup restored" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Display name", { exact: true })).toHaveValue(
+    "Restored empty",
+  );
+  await page.getByRole("link", { name: "Today", exact: true }).first().click();
+  await expect(
+    page.getByText("No timers running", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Start Morning walk", exact: true }),
+  ).toHaveCount(0);
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "Start Morning walk", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("link", { name: "Settings", exact: true })
+    .first()
+    .click();
+  await trigger.click();
+  await dialog.getByLabel("Backup file").setInputFiles({
+    name: "original-backup.json",
+    mimeType: "application/json",
+    buffer: original,
+  });
+  await dialog.getByRole("button", { name: "Review overwrite" }).click();
+  await dialog.getByRole("button", { name: "Replace all data" }).click();
+  await confirmation.fill("CONFIRM");
+  await dialog.getByRole("button", { name: "Overwrite and restore" }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByLabel("Display name", { exact: true })).toHaveValue(
+    originalName,
+  );
+  await page.getByRole("link", { name: "Today", exact: true }).first().click();
+  await expect(
+    page.getByRole("button", { name: "Start Morning walk", exact: true }),
+  ).toHaveCount(1);
+});
+
+test("shows accessible overwrite warnings at every import step", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(60_000);
+  await page.goto("/settings");
+  const backup = {
+    schemaVersion: 1,
+    exportedAt: "2026-09-13T12:00:00Z",
+    profile: {
+      id: "local-demo",
+      displayName: "Test backup",
+      timezone: "UTC",
+      theme: "system",
+      onboardingCompleted: true,
+    },
+    tasks: [],
+    dailyGoals: [],
+    entries: [],
+  };
+  const trigger = page.getByRole("button", {
+    name: "Import JSON",
+    exact: true,
+  });
+  for (const width of [1500, 320]) {
+    await page.setViewportSize({ width, height: 950 });
+    for (const theme of ["light", "dark"]) {
+      await page.evaluate(
+        (theme) => (document.documentElement.dataset.theme = theme),
+        theme,
+      );
+      await page.waitForTimeout(400);
+      await trigger.click();
+      const dialog = page.getByRole("dialog");
+      await expect(
+        dialog.getByRole("button", { name: "Cancel" }),
+      ).toBeFocused();
+      await dialog.getByLabel("Backup file").setInputFiles({
+        name: "backup.json",
+        mimeType: "application/json",
+        buffer: Buffer.from(JSON.stringify(backup)),
+      });
+      for (const step of [1, 2, 3]) {
+        await page.waitForTimeout(400);
+        expect(
+          (
+            await new AxeBuilder({ page })
+              .include(".backup-import-dialog")
+              .analyze()
+          ).violations,
+        ).toEqual([]);
+        expect(
+          await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth),
+        ).toBe(true);
+        await page.screenshot({
+          path: testInfo.outputPath(
+            "import-" + width + "-" + theme + "-step" + step + ".png",
+          ),
+        });
+        if (step === 1)
+          await dialog
+            .getByRole("button", { name: "Review overwrite" })
+            .click();
+        if (step === 2)
+          await dialog
+            .getByRole("button", { name: "Replace all data" })
+            .click();
+      }
+      await expect(
+        dialog.getByLabel("Type CONFIRM to overwrite all data"),
+      ).toBeFocused();
+      await dialog.getByRole("button", { name: "Cancel" }).click();
+      await expect(trigger).toBeFocused();
+    }
+  }
+});
+
+test("requires confirmation before signing out and allows returning to the demo", async ({
+  page,
+}) => {
+  await page.goto("/settings");
+  const name = page.getByLabel("Display name", { exact: true });
+  await name.fill("Sign-out test");
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  const trigger = page.getByRole("button", { name: "Sign out", exact: true });
+  await trigger.click();
+  const dialog = page.getByRole("dialog", { name: "Sign out?", exact: true });
+  await expect(dialog).toContainText("your changes will be lost");
+  await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
+  expect(
+    (await new AxeBuilder({ page }).include(".confirm-compact").analyze())
+      .violations,
+  ).toEqual([]);
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(trigger).toBeFocused();
+  await expect(name).toHaveValue("Sign-out test");
+  await trigger.click();
+  await dialog.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect(page).toHaveURL(/\/login$/, { timeout: 15_000 });
+  await page.getByRole("link", { name: /Explore the local demo/ }).click();
+  await expect(page).toHaveURL(/\/today$/);
+});
+
+test("confirms account deletion in a compact two-step popup", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(60_000);
+  await page.goto("/settings");
+  const trigger = page.getByRole("button", {
+    name: "Delete account",
+    exact: true,
+  });
+  for (const width of [1500, 320]) {
+    await page.setViewportSize({ width, height: 950 });
+    for (const theme of ["light", "dark"]) {
+      await page.evaluate(
+        (theme) => (document.documentElement.dataset.theme = theme),
+        theme,
+      );
+      await page.waitForTimeout(400);
+      await trigger.click();
+      const dialog = page.getByRole("dialog");
+      await expect(
+        dialog.getByRole("button", { name: "Cancel" }),
+      ).toBeFocused();
+      await dialog.getByRole("button", { name: "Continue" }).click();
+      const input = dialog.getByLabel("Type DELETE to confirm");
+      await expect(input).toBeFocused();
+      await expect(
+        dialog.getByRole("button", { name: "Delete permanently" }),
+      ).toBeDisabled();
+      await input.fill("DELETE");
+      await expect(
+        dialog.getByRole("button", { name: "Delete permanently" }),
+      ).toBeEnabled();
+      expect(
+        (
+          await new AxeBuilder({ page })
+            .include(".account-delete-dialog")
+            .analyze()
+        ).violations,
+      ).toEqual([]);
+      expect(
+        await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth),
+      ).toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(
+          "delete-account-" + width + "-" + theme + ".png",
+        ),
+      });
+      await dialog.getByRole("button", { name: "Cancel" }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect(trigger).toBeFocused();
+    }
+  }
+});
+
+test("saves settings only when preferences change", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(60_000);
+  await page
+    .getByRole("link", { name: "Settings", exact: true })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Settings", exact: true }),
+  ).toBeVisible();
+  const save = page.getByRole("button", { name: "Save changes", exact: true });
+  const name = page.getByLabel("Display name", { exact: true });
+  const originalName = await name.inputValue();
+  const timezone = page.getByRole("button", { name: "Timezone", exact: true });
+  const originalTimezone = await timezone.innerText();
+  await expect(save).toBeDisabled();
+  await name.fill(originalName + " edited");
+  await expect(save).toBeEnabled();
+  await name.fill(originalName);
+  await expect(save).toBeDisabled();
+  const triggerBounds = await timezone.boundingBox();
+  await timezone.click();
+  const menuBounds = await page.locator(".entry-task-menu").boundingBox();
+  expect(Math.abs(menuBounds!.x - triggerBounds!.x)).toBeLessThan(2);
+  expect(Math.abs(menuBounds!.width - triggerBounds!.width)).toBeLessThan(2);
+  expect(menuBounds!.height).toBeLessThanOrEqual(420);
+  await page.screenshot({ path: testInfo.outputPath("timezone-picker.png") });
+  expect(await page.getByRole("option").count()).toBeGreaterThan(30);
+  expect(await page.getByRole("option").count()).toBeLessThan(45);
+  await expect(
+    page.getByRole("group", { name: "Asia", exact: true }),
+  ).toBeVisible();
+  const search = page.getByRole("combobox", { name: "Search timezones" });
+  await search.fill("Chatham");
+  await expect(page.getByRole("option", { name: /Chatham/ })).toBeVisible();
+  await search.fill("not-a-timezone");
+  await expect(page.getByRole("option")).toHaveCount(0);
+  await expect(
+    page.getByText("No timezones found.", { exact: false }),
+  ).toBeVisible();
+  await search.fill("05:45");
+  await expect(
+    page.getByRole("option", { name: /Kat(h)?mandu/ }),
+  ).toBeVisible();
+  await search.press("Enter");
+  await expect(timezone).toContainText("UTC+05:45");
+  await expect(save).toBeEnabled();
+  await page
+    .getByRole("button", { name: "Use device timezone", exact: true })
+    .click();
+  const deviceZone = await page.evaluate(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+  );
+  await expect(timezone).toContainText(deviceZone.replaceAll("_", " "));
+  await expect(
+    page.getByRole("button", { name: "Use device timezone", exact: true }),
+  ).toBeDisabled();
+  await timezone.click();
+  await page
+    .getByRole("option", { name: originalTimezone, exact: true })
+    .click();
+  await expect(save).toBeDisabled();
+  const selectedTheme = page.getByRole("radio", { checked: true });
+  const originalTheme = await selectedTheme.inputValue();
+  await selectedTheme.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(save).toBeEnabled();
+  await page
+    .locator(`.settings-theme-choice input[value="${originalTheme}"]`)
+    .focus();
+  await page.keyboard.press("Space");
+  await expect(save).toBeDisabled();
+  await name.fill(originalName + " edited");
+  await save.click();
+  await expect(
+    page.getByRole("button", { name: "Saved", exact: true }),
+  ).toBeDisabled();
+  await expect(page.getByRole("status")).toContainText("Changes saved.");
+  await name.fill(originalName + " another edit");
+  await expect(save).toBeEnabled();
+  await name.fill(originalName + " edited");
+  await expect(save).toBeDisabled();
+  await page.reload();
+  await expect(name).toHaveValue(originalName + " edited");
+  await expect(save).toBeDisabled();
+  for (const width of [1500, 320]) {
+    await page.setViewportSize({ width, height: 950 });
+    for (const theme of ["light", "dark"]) {
+      await page.evaluate(
+        (theme) => (document.documentElement.dataset.theme = theme),
+        theme,
+      );
+      await page.waitForTimeout(400);
+      const scan = await new AxeBuilder({ page })
+        .include(".settings-form")
+        .analyze();
+      expect(scan.violations).toEqual([]);
+      expect(
+        await page
+          .locator(".settings-form")
+          .evaluate((element) => element.scrollWidth <= element.clientWidth),
+      ).toBe(true);
+      await timezone.click();
+      const pickerScan = await new AxeBuilder({ page })
+        .include(".timezone-search-menu")
+        .analyze();
+      expect(pickerScan.violations).toEqual([]);
+      await page.screenshot({
+        path: testInfo.outputPath(`settings-${width}-${theme}.png`),
+      });
+      await page.keyboard.press("Escape");
+      await expect(timezone).toBeFocused();
+    }
+  }
+});
+
+test("scrolls long history without growing the calendar", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 1500, height: 950 });
+  await page
+    .getByRole("link", { name: "Calendar", exact: true })
+    .first()
+    .click();
+  const calendar = page.locator(".calendar-card");
+  const initialHeight = (await calendar.boundingBox())!.height;
+  for (let index = 0; index < 10; index++) {
+    await page.getByRole("button", { name: "Add time", exact: true }).click();
+    const dialog = page.getByRole("dialog", {
+      name: "Add tracked time",
+      exact: true,
+    });
+    await dialog.getByRole("button", { name: "Add time", exact: true }).click();
+    await expect(dialog).toBeHidden();
+  }
+  expect((await calendar.boundingBox())!.height).toBeCloseTo(initialHeight, 0);
+  expect((await page.locator(".day-detail").boundingBox())!.height).toBeCloseTo(
+    initialHeight,
+    0,
+  );
+  for (const width of [1500, 320]) {
+    await page.setViewportSize({ width, height: 950 });
+    const history = page.getByRole("region", {
+      name: "Tracked entries",
+      exact: true,
+    });
+    expect(
+      await history.evaluate(
+        (element) => element.scrollHeight > element.clientHeight,
+      ),
+    ).toBe(true);
+    if (width === 320)
+      expect((await page.locator(".day-detail").boundingBox())!.height).toBe(
+        560,
+      );
+    await history.focus();
+    await page.keyboard.press("End");
+    await expect
+      .poll(() => history.evaluate((element) => element.scrollTop))
+      .toBeGreaterThan(0);
+    await history
+      .getByRole("button", { name: /Entry actions/ })
+      .last()
+      .focus();
+    await expect(
+      history.getByRole("button", { name: /Entry actions/ }).last(),
+    ).toBeFocused();
+    const scan = await new AxeBuilder({ page })
+      .include(".day-detail")
+      .analyze();
+    expect(scan.violations).toEqual([]);
+  }
+});
+
+test("keeps calendar entry controls balanced in both themes", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(60_000);
+  const longName =
+    "Super Long Task Name That Would Surely Exceed The UI Boundaries";
+  await page.getByRole("button", { name: "Add task", exact: true }).click();
+  const taskDialog = page.getByRole("dialog");
+  await taskDialog.getByLabel("Task name").fill(longName);
+  await taskDialog
+    .getByRole("button", { name: "Add task", exact: true })
+    .click();
+  await page
+    .getByRole("link", { name: "Calendar", exact: true })
+    .first()
+    .click();
+  for (const width of [1500, 320]) {
+    await page.setViewportSize({ width, height: 950 });
+    for (const theme of ["light", "dark"]) {
+      await page.evaluate(
+        (theme) => (document.documentElement.dataset.theme = theme),
+        theme,
+      );
+      const add = page.getByRole("button", { name: "Add time", exact: true });
+      const summary = page.locator(".day-summary");
+      const dateBounds = await summary.locator("h2").boundingBox();
+      const totalBounds = await summary.locator(".day-total").boundingBox();
+      expect(totalBounds!.x).toBeGreaterThan(dateBounds!.x + dateBounds!.width);
+      const summaryBounds = await summary.boundingBox();
+      const toolbarBounds = await page
+        .locator(".day-history-toolbar")
+        .boundingBox();
+      expect(toolbarBounds!.y).toBeGreaterThanOrEqual(
+        summaryBounds!.y + summaryBounds!.height,
+      );
+      const sort = page.getByRole("combobox", {
+        name: /History order: Latest first/,
+      });
+      const sortBounds = await sort.boundingBox();
+      const addBounds = await add.boundingBox();
+      expect(sortBounds!.x).toBeCloseTo(toolbarBounds!.x, 0);
+      expect(addBounds!.x + addBounds!.width).toBeCloseTo(
+        toolbarBounds!.x + toolbarBounds!.width,
+        0,
+      );
+      await sort.click();
+      const sortScan = await new AxeBuilder({ page })
+        .include(".history-sort-menu")
+        .analyze();
+      expect(sortScan.violations).toEqual([]);
+      await page.screenshot({
+        path: testInfo.outputPath(`calendar-sort-${width}-${theme}.png`),
+      });
+      await page
+        .getByRole("option", { name: "Oldest first", exact: true })
+        .click();
+      await expect(
+        page.getByRole("combobox", { name: /History order: Oldest first/ }),
+      ).toBeVisible();
+      await page
+        .getByRole("combobox", { name: /History order: Oldest first/ })
+        .click();
+      await page
+        .getByRole("option", { name: "Latest first", exact: true })
+        .click();
+      expect(
+        await page
+          .locator(".day-detail")
+          .evaluate((element) => element.scrollWidth <= element.clientWidth),
+      ).toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(`calendar-summary-${width}-${theme}.png`),
+      });
+      expect(
+        await add.evaluate((element) => getComputedStyle(element).whiteSpace),
+      ).toBe("nowrap");
+      expect(
+        await add.evaluate((element) =>
+          parseFloat(getComputedStyle(element).fontSize),
+        ),
+      ).toBeGreaterThanOrEqual(14);
+      await add.click();
+      const dialog = page.getByRole("dialog", {
+        name: "Add tracked time",
+        exact: true,
+      });
+      expect(
+        await dialog
+          .getByRole("button", { name: "Add time", exact: true })
+          .evaluate((element) =>
+            parseFloat(getComputedStyle(element).fontSize),
+          ),
+      ).toBeGreaterThanOrEqual(14);
+      const heading = await dialog.locator(".dialog-heading").boundingBox();
+      const description = await dialog
+        .locator(".entry-description")
+        .boundingBox();
+      expect(description!.y - heading!.y - heading!.height).toBeCloseTo(12, 0);
+      const hoursLabel = dialog.locator(".duration-fields label").first();
+      await expect(hoursLabel).toContainText("Duration (hours)");
+      expect(
+        await hoursLabel.evaluate(
+          (element) => getComputedStyle(element).whiteSpace,
+        ),
+      ).toBe("nowrap");
+      const select = page.locator(".entry-task-trigger");
+      await select.click();
+      const menu = page.getByRole("listbox");
+      const field = await select.boundingBox();
+      const menuBounds = await menu.boundingBox();
+      const longOption = page.getByRole("option", {
+        name: longName,
+        exact: true,
+      });
+      expect(
+        await longOption.evaluate(
+          (element) => element.scrollWidth <= element.clientWidth,
+        ),
+      ).toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(`calendar-menu-${width}-${theme}.png`),
+      });
+      expect(menuBounds!.x).toBeCloseTo(field!.x, 0);
+      expect(menuBounds!.width).toBeCloseTo(field!.width, 0);
+      const menuScan = await new AxeBuilder({ page })
+        .include(".entry-task-menu")
+        .analyze();
+      expect(menuScan.violations).toEqual([]);
+      await page.keyboard.press("End");
+      await page.keyboard.press("Home");
+      await page.keyboard.press("Escape");
+      await expect(menu).toBeHidden();
+      await expect(select).toBeFocused();
+      await select.click();
+      await page
+        .getByRole("option", { name: "Watch list", exact: true })
+        .click();
+      await expect(select).toContainText("Watch list");
+      await expect(dialog).toContainText(
+        "Added or corrected time counts toward daily totals, but not the three-hour streak.",
+      );
+      await dialog.getByLabel("Hours", { exact: true }).fill("0");
+      await dialog.getByLabel("Minutes", { exact: true }).fill("15");
+      const scan = await new AxeBuilder({ page })
+        .include('[role="dialog"]')
+        .analyze();
+      expect(scan.violations).toEqual([]);
+      expect(
+        await dialog.evaluate(
+          (element) => element.scrollWidth <= element.clientWidth,
+        ),
+      ).toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(`calendar-entry-${width}-${theme}.png`),
+      });
+      await dialog
+        .getByRole("button", { name: "Add time", exact: true })
+        .click();
+      await expect(dialog).toBeHidden();
+    }
+  }
+});
+test("keeps the active card fixed and scrolls consistent timer rows", async ({
+  page,
+}, testInfo) => {
+  const card = page.locator(".active-timers-card");
+  expect((await card.boundingBox())!.height).toBe(260);
+  const longName =
+    "Super Long Task Name That Would Surely Exceed The UI Boundaries";
+  await page.getByRole("button", { name: "Add task", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Task name").fill(longName);
+  await dialog.getByRole("button", { name: "Add task", exact: true }).click();
+  for (const name of [
+    "Morning walk",
+    "Portfolio project",
+    "Watch list",
+    longName,
+  ]) {
+    await page
+      .getByRole("button", { name: `Start ${name}`, exact: true })
+      .click();
+    expect((await card.boundingBox())!.height).toBe(260);
+  }
+  for (const width of [1500, 320]) {
+    await page.setViewportSize({ width, height: 950 });
+    for (const theme of ["light", "dark"]) {
+      await page.evaluate(
+        (theme) => (document.documentElement.dataset.theme = theme),
+        theme,
+      );
+      await expect(card.getByText("Right now", { exact: true })).toHaveCount(0);
+      for (const button of await card.locator(".active-timer-pause").all()) {
+        const center = await button.evaluate((element) => {
+          const button = element.getBoundingClientRect();
+          const icon = element.querySelector("svg")!.getBoundingClientRect();
+          return {
+            x: Math.abs(button.x + button.width / 2 - icon.x - icon.width / 2),
+            y: Math.abs(
+              button.y + button.height / 2 - icon.y - icon.height / 2,
+            ),
+            width: button.width,
+            height: button.height,
+          };
+        });
+        expect(center.x).toBeLessThan(1);
+        expect(center.y).toBeLessThan(1);
+        expect(center.width).toBe(44);
+        expect(center.height).toBe(44);
+      }
+      const list = card.getByRole("list");
+      const rows = await list
+        .getByRole("listitem")
+        .evaluateAll((elements) =>
+          elements.map((element) => element.getBoundingClientRect().height),
+        );
+      expect(rows).toEqual([68, 68, 68, 68]);
+      const scroll = await list.evaluate((element) => ({
+        content: element.scrollHeight,
+        viewport: element.clientHeight,
+      }));
+      expect(scroll.content).toBeGreaterThan(scroll.viewport);
+      await list.focus();
+      await page.keyboard.press("End");
+      await expect
+        .poll(() => list.evaluate((element) => element.scrollTop))
+        .toBeGreaterThan(0);
+      const title = list.getByText(longName, { exact: true });
+      await expect(title).toHaveAttribute("title", longName);
+      expect(
+        await title.evaluate(
+          (element) => element.scrollWidth > element.clientWidth,
+        ),
+      ).toBe(true);
+      expect((await card.boundingBox())!.height).toBe(260);
+      await card.scrollIntoViewIfNeeded();
+      await page.screenshot({
+        path: testInfo.outputPath(`fixed-active-${width}-${theme}.png`),
+      });
+      const scan = await new AxeBuilder({ page })
+        .include(".active-timers-card")
+        .analyze();
+      expect(scan.violations).toEqual([]);
+    }
+  }
+  await card.getByRole("button", { name: "Pause all", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "Pause all timers?", exact: true })
+    .getByRole("button", { name: "Pause all timers", exact: true })
+    .click();
+  expect((await card.boundingBox())!.height).toBe(260);
+});
+test("shows a tracking-only indicator away from Today", async ({ page }) => {
+  const dock = page.locator(".active-dock");
+  await expect(dock).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Start Morning walk", exact: true })
+    .click();
+  await expect(dock).toHaveCount(0);
+  for (const route of ["Calendar", "Insights", "Settings"]) {
+    await page.getByRole("link", { name: route, exact: true }).first().click();
+    await expect(dock).toContainText("Tracking");
+    await expect(dock).toContainText("1 timer active");
+    await expect(dock.getByRole("button")).toHaveCount(0);
+  }
+  await page.getByRole("link", { name: "Today", exact: true }).first().click();
+  await expect(dock).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Start Portfolio project", exact: true })
+    .click();
+  await page
+    .getByRole("link", { name: "Calendar", exact: true })
+    .first()
+    .click();
+  await expect(dock).toContainText("2 timers active");
+  await page.getByRole("link", { name: "Today", exact: true }).first().click();
+  await page
+    .locator(".active-timers-card")
+    .getByRole("button", { name: "Pause all", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Pause all timers?", exact: true })
+    .getByRole("button", { name: "Pause all timers", exact: true })
+    .click();
+  await page
+    .getByRole("link", { name: "Calendar", exact: true })
+    .first()
+    .click();
+  await expect(dock).toHaveCount(0);
+});
+test("pairs daily progress with active timers", async ({ page }, testInfo) => {
+  for (const width of [1500, 768, 320]) {
+    await page.setViewportSize({ width, height: 950 });
+    for (const theme of ["light", "dark"]) {
+      await page.evaluate(
+        (theme) => (document.documentElement.dataset.theme = theme),
+        theme,
+      );
+      const card = page.locator(".daily-card");
+      await expect(
+        card.getByText("Today’s rhythm", { exact: true }),
+      ).toBeVisible();
+      await expect(card.getByText("of 8h 0m", { exact: true })).toBeVisible();
+      const bounds = await card.boundingBox();
+
+      expect(bounds!.x).toBeGreaterThanOrEqual(0);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+      if (width === 1500) {
+        expect(bounds!.height).toBeLessThanOrEqual(280);
+        const active = await page.locator(".active-timers-card").boundingBox();
+        expect(active!.x).toBeGreaterThan(bounds!.x + bounds!.width);
+      }
+      for (const button of await card.getByRole("button").all()) {
+        await button.focus();
+        const tooltip = card.locator('[role="tooltip"]:visible');
+        const tooltipBounds = await tooltip.boundingBox();
+        expect(tooltipBounds!.x).toBeGreaterThanOrEqual(0);
+        expect(tooltipBounds!.x + tooltipBounds!.width).toBeLessThanOrEqual(
+          width,
+        );
+      }
+      await card.getByRole("heading").click();
+      await expect(card.locator('[role="tooltip"]:visible')).toHaveCount(0);
+      const scan = await new AxeBuilder({ page })
+        .include(".today-grid")
+        .analyze();
+      expect(
+        scan.violations.filter(
+          (v) => v.impact === "serious" || v.impact === "critical",
+        ),
+      ).toEqual([]);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(`daily-${width}-${theme}.png`),
+      });
+    }
+  }
+});
+test("shows concurrent sessions in the active card and pauses them", async ({
+  page,
+}, testInfo) => {
+  const card = page.locator(".active-timers-card");
+  await expect(
+    card.getByText("No timers running", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Start Morning walk", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Start Portfolio project", exact: true })
+    .click();
+  await expect(card.locator("li")).toHaveCount(2);
+  await expect(
+    card.getByText("No timers running", { exact: true }),
+  ).toBeHidden();
+  await page.screenshot({ path: testInfo.outputPath("active-sessions.png") });
+  const scan = await new AxeBuilder({ page })
+    .include(".active-timers-card")
+    .analyze();
+  expect(scan.violations).toEqual([]);
+  const duration = card.locator(".active-timer-duration").first();
+  const before = await duration.textContent();
+  await expect(duration).not.toHaveText(before!);
+  await card
+    .getByRole("button", {
+      name: "Pause active timer Morning walk",
+      exact: true,
+    })
+    .click();
+  await expect(card.locator("li")).toHaveCount(1);
+  await expect(
+    page.getByRole("button", { name: "Start Morning walk", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Start Morning walk", exact: true })
+    .click();
+  await card.getByRole("button", { name: "Pause all", exact: true }).click();
+  const confirmation = page.getByRole("dialog", {
+    name: "Pause all timers?",
+    exact: true,
+  });
+  await expect(
+    confirmation.getByRole("button", { name: "Keep running" }),
+  ).toBeFocused();
+  await expect(card.locator("li")).toHaveCount(2);
+  await confirmation.getByRole("button", { name: "Keep running" }).click();
+  await expect(confirmation).toBeHidden();
+  await expect(card.locator("li")).toHaveCount(2);
+  await card.getByRole("button", { name: "Pause all", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await expect(confirmation).toBeHidden();
+  await expect(card.locator("li")).toHaveCount(2);
+  await card.getByRole("button", { name: "Pause all", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "Pause all timers?", exact: true })
+    .getByRole("button", { name: "Pause all timers", exact: true })
+    .click();
+  await expect(
+    card.getByText("No timers running", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.locator(".task-list").getByRole("button", { name: /^Pause / }),
+  ).toHaveCount(0);
+});
+test("centers the reached-limit confirmation and continues only by choice", async ({
+  page,
+}, testInfo) => {
+  await page
+    .getByRole("link", { name: "Calendar", exact: true })
+    .first()
+    .click();
+  await page.getByRole("button", { name: "Add time", exact: true }).click();
+  const entry = page.getByRole("dialog");
+  await entry.getByRole("combobox").click();
+  await page.getByRole("option", { name: "Watch list", exact: true }).click();
+  await entry.getByLabel("Hours", { exact: true }).fill("2");
+  await entry.getByLabel("Minutes", { exact: true }).fill("0");
+  await entry.getByRole("button", { name: "Add time", exact: true }).click();
+  await page.getByRole("link", { name: "Today", exact: true }).first().click();
+  const trigger = page.getByRole("button", {
+    name: "Continue Watch list",
+    exact: true,
+  });
+  for (const theme of ["light", "dark"]) {
+    await page.evaluate(
+      (theme) => (document.documentElement.dataset.theme = theme),
+      theme,
+    );
+    await trigger.click();
+    const dialog = page.getByRole("dialog", {
+      name: "Continue Watch list?",
+      exact: true,
+    });
+    await expect(
+      dialog.getByRole("button", { name: "Keep paused" }),
+    ).toBeFocused();
+    await expect(dialog).toContainText(
+      "but the extra time will not be tracked.",
+    );
+    for (const label of ["Keep paused", "Continue anyway"]) {
+      const button = dialog.getByRole("button", { name: label });
+      const layout = await button.evaluate((element) => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        return {
+          lines: range.getClientRects().length,
+          fits: element.scrollWidth <= element.clientWidth,
+        };
+      });
+      expect(layout.lines).toBe(1);
+      expect(layout.fits).toBe(true);
+    }
+    const bounds = await dialog.boundingBox();
+    const viewport = page.viewportSize()!;
+    expect(bounds).not.toBeNull();
+    expect(
+      Math.abs(bounds!.x + bounds!.width / 2 - viewport.width / 2),
+    ).toBeLessThan(2);
+    expect(
+      Math.abs(bounds!.y + bounds!.height / 2 - viewport.height / 2),
+    ).toBeLessThan(2);
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.width).toBeLessThanOrEqual(viewport.width);
+    expect(
+      await dialog.evaluate(
+        (element) => getComputedStyle(element).backgroundColor,
+      ),
+    ).not.toBe("rgba(0, 0, 0, 0)");
+    await expect(
+      dialog.getByText("Limit reached", { exact: true }),
+    ).toBeVisible();
+    const scan = await new AxeBuilder({ page })
+      .include('[role="dialog"]')
+      .analyze();
+    expect(scan.violations).toEqual([]);
+    await page.screenshot({ path: testInfo.outputPath(`limit-${theme}.png`) });
+    await dialog.getByRole("button", { name: "Keep paused" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(trigger).toBeVisible();
+  }
+  await trigger.click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toBeHidden();
+  await trigger.click();
+  await page.getByRole("button", { name: "Continue anyway" }).click();
+  await expect(page.getByRole("dialog")).toBeHidden();
+  const running = page
+    .locator(".active-timers-list li")
+    .filter({ hasText: "Watch list" });
+  await expect(running.locator(".active-timer-duration")).toHaveText(
+    /^−\d{2}:\d{2}:\d{2}$/,
+  );
+  await expect(running).not.toContainText("Over limit");
+  await expect(running.locator(".active-timer-duration")).toHaveClass(
+    /negative-duration/,
+  );
+  // Let a positive continued duration accrue before pausing it.
+  await expect(running.locator(".active-timer-duration")).toHaveText(
+    /^−01:00:0[2-9]$/,
+  );
+  await expect(
+    page
+      .locator(".task-card")
+      .filter({
+        has: page.getByRole("heading", { name: "Watch list", exact: true }),
+      })
+      .locator(".task-time strong"),
+  ).toHaveText(/^−\d{2}:\d{2}:\d{2}$/);
+  await page
+    .getByRole("button", { name: "Pause Watch list", exact: true })
+    .click();
+  await page
+    .getByRole("link", { name: "Calendar", exact: true })
+    .first()
+    .click();
+  const extra = page
+    .locator(".history-entry")
+    .filter({ hasText: "Watch list" })
+    .filter({ has: page.locator(".negative-duration") });
+  await expect(extra).toHaveCount(1);
+  await expect(extra).not.toContainText("Over limit");
+  await expect(extra.locator("strong")).toContainText(/^−/);
+  await expect(
+    page
+      .locator(".history-entry")
+      .filter({ hasText: "Manual addition" })
+      .locator("strong"),
+  ).toHaveText("2h 0m");
+  await extra.screenshot({
+    path: testInfo.outputPath("negative-limit-history.png"),
+  });
+  for (const theme of ["light", "dark"]) {
+    await page.evaluate(
+      (theme) => (document.documentElement.dataset.theme = theme),
+      theme,
+    );
+    await page.waitForTimeout(400);
+    await expect(extra.locator("strong")).toHaveCSS(
+      "color",
+      theme === "light" ? "rgb(189, 63, 63)" : "rgb(255, 146, 146)",
+    );
+    expect(
+      (await new AxeBuilder({ page }).include(".history-list").analyze())
+        .violations,
+    ).toEqual([]);
+  }
+});
 
 test("gives shared task actions a subtle hover lift", async ({
   page,
@@ -198,7 +1191,8 @@ test("warns before lowering a running limit and retains tracked time", async ({
     .click();
   await page.getByRole("button", { name: "Add time", exact: true }).click();
   const entry = page.getByRole("dialog");
-  await entry.getByRole("combobox").selectOption({ label: "Watch list" });
+  await entry.getByRole("combobox").click();
+  await page.getByRole("option", { name: "Watch list", exact: true }).click();
   await entry.getByLabel("Hours", { exact: true }).fill("0");
   await entry.getByLabel("Minutes", { exact: true }).fill("10");
   await entry.getByRole("button", { name: "Add time", exact: true }).click();
@@ -242,7 +1236,7 @@ test("warns before lowering a running limit and retains tracked time", async ({
     .locator(".history-entry")
     .filter({ has: page.getByRole("heading", { name: "Watch list" }) });
   await expect(history).toHaveCount(2);
-  await expect(history.filter({ hasText: "Manual correction" })).toContainText(
+  await expect(history.filter({ hasText: "Manual addition" })).toContainText(
     "10m",
   );
   await expect(history.filter({ hasText: "Timer" })).toContainText(
@@ -441,10 +1435,14 @@ test("tracks concurrent tasks and writes duration history", async ({
 }) => {
   await page.getByRole("button", { name: "Start Morning walk" }).click();
   await page.getByRole("button", { name: "Start Portfolio project" }).click();
-  await expect(page.getByText("2 timers active")).toBeVisible();
+  await expect(page.locator(".active-timers-card li")).toHaveCount(2);
   await page.waitForTimeout(1100);
   await page.getByRole("button", { name: "Pause all" }).click();
-  await expect(page.getByText("2 timers active")).toBeHidden();
+  await page
+    .getByRole("dialog", { name: "Pause all timers?", exact: true })
+    .getByRole("button", { name: "Pause all timers", exact: true })
+    .click();
+  await expect(page.locator(".active-timers-card li")).toHaveCount(0);
 
   await page.getByRole("link", { name: "Calendar" }).first().click();
   await expect(
@@ -457,28 +1455,93 @@ test("tracks concurrent tasks and writes duration history", async ({
 
 test("reverts a timer correction to restore streak eligibility", async ({
   page,
-}) => {
+}, testInfo) => {
+  test.setTimeout(60_000);
   await page.getByRole("button", { name: "Start Morning walk" }).click();
   await page.waitForTimeout(1100);
   await page.getByRole("button", { name: "Pause Morning walk" }).click();
   await page.getByRole("link", { name: "Calendar" }).first().click();
 
   await page
-    .getByRole("button", { name: "Edit entry for Morning walk" })
+    .getByRole("button", { name: "Entry actions for Morning walk" })
     .click();
+  await page.getByRole("menuitem", { name: "Edit entry", exact: true }).click();
   await page.getByLabel("Hours").fill("1");
   await page.getByLabel("Minutes").fill("0");
   await page.getByRole("button", { name: "Save correction" }).click();
+  await expect(
+    page.getByRole("button", { name: "Entry actions for Morning walk" }),
+  ).toBeFocused();
 
   await expect(page.getByText("Timer · corrected")).toBeVisible();
+  for (const width of [1500, 320]) {
+    await page.setViewportSize({ width, height: 950 });
+    for (const theme of ["light", "dark"]) {
+      await page.evaluate(
+        (theme) => (document.documentElement.dataset.theme = theme),
+        theme,
+      );
+      const row = page.locator(".history-entry");
+      await expect(row.locator("button")).toHaveCount(1);
+      expect(
+        await row.evaluate(
+          (element) => element.scrollWidth <= element.clientWidth,
+        ),
+      ).toBe(true);
+      const actions = page.getByRole("button", {
+        name: "Entry actions for Morning walk",
+      });
+      await actions.click();
+      await expect(
+        page.getByRole("menuitem", {
+          name: "Restore original time",
+          exact: true,
+        }),
+      ).toBeVisible();
+      const scan = await new AxeBuilder({ page })
+        .include(".history-actions-menu")
+        .analyze();
+      expect(scan.violations).toEqual([]);
+      await page.screenshot({
+        path: testInfo.outputPath(`history-actions-${width}-${theme}.png`),
+      });
+      await page.keyboard.press("Escape");
+      await expect(actions).toBeFocused();
+    }
+  }
   await page
-    .getByRole("button", { name: "Revert correction for Morning walk" })
+    .getByRole("button", { name: "Entry actions for Morning walk" })
+    .click();
+  await page
+    .getByRole("menuitem", { name: "Restore original time", exact: true })
     .click();
 
   await expect(page.getByText("Timer · corrected")).toBeHidden();
   await expect(
-    page.getByRole("button", { name: "Revert correction for Morning walk" }),
+    page.getByRole("menuitem", { name: "Restore original time", exact: true }),
   ).toBeHidden();
+  const actions = page.getByRole("button", {
+    name: "Entry actions for Morning walk",
+  });
+  await actions.click();
+  await page
+    .getByRole("menuitem", { name: "Delete entry", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(actions).toBeFocused();
+  await expect(page.locator(".history-entry")).toHaveCount(1);
+  await actions.click();
+  await page
+    .getByRole("menuitem", { name: "Delete entry", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Delete tracked entry?" })
+    .getByRole("button", { name: "Delete entry", exact: true })
+    .click();
+  await expect(page.locator(".history-entry")).toHaveCount(0);
+  await expect(
+    page.getByRole("region", { name: "Tracked entries", exact: true }),
+  ).toBeFocused();
 });
 
 test("offers a button alternative to drag reordering", async ({ page }) => {

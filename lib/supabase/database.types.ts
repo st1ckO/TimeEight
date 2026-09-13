@@ -194,7 +194,12 @@ export interface Database {
         Relationships: [];
       };
     };
-    Functions: Record<string, never>;
+    Functions: {
+      restore_account_backup: {
+        Args: { backup: Json; confirmation: string };
+        Returns: undefined;
+      };
+    };
     Enums: {
       profile_theme: "system" | "light" | "dark";
       goal_kind: "minimum" | "limit";

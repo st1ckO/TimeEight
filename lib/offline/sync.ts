@@ -1,3 +1,4 @@
+import { withUserDataLock } from "./user-data-lock";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/browser";
@@ -183,7 +184,7 @@ async function applyMutation(
   }
 }
 
-export async function syncPendingMutations(
+async function syncPendingMutationsUnlocked(
   userId: string,
 ): Promise<{ synced: number; error?: string }> {
   const db = getLocalDatabase();
@@ -207,6 +208,10 @@ export async function syncPendingMutations(
     synced += 1;
   }
   return { synced };
+}
+
+export async function syncPendingMutations(userId: string) {
+  return withUserDataLock(userId, () => syncPendingMutationsUnlocked(userId));
 }
 
 export interface RemoteSnapshot {
@@ -315,7 +320,7 @@ export async function loadRemoteSnapshot(
   };
 }
 
-export async function checkpointRemoteTimer(timer: ActiveTimer) {
+async function checkpointRemoteTimerUnlocked(timer: ActiveTimer) {
   const client = createClient();
   return client
     .from("active_timers")
@@ -324,4 +329,10 @@ export async function checkpointRemoteTimer(timer: ActiveTimer) {
       checkpoint_seconds: timer.checkpointSeconds,
     })
     .eq("id", timer.id);
+}
+
+export async function checkpointRemoteTimer(timer: ActiveTimer) {
+  return withUserDataLock(timer.userId, () =>
+    checkpointRemoteTimerUnlocked(timer),
+  );
 }

@@ -1,19 +1,32 @@
 "use client";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { ConfirmTaskAction } from "@/components/tasks/confirm-task-action";
+import * as Select from "@radix-ui/react-select";
 import { taskTargetForDate } from "@/lib/domain/task-targets";
 
 import {
   ChevronLeft,
   ChevronRight,
+  ArrowDown,
+  ArrowUp,
+  ChevronDown,
+  Check,
+  MoreHorizontal,
   Pencil,
   Plus,
   RotateCcw,
   ShieldCheck,
   Trash2,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useTimeEight } from "@/components/app/app-provider";
 import { ProgressRing } from "@/components/ui/progress-ring";
-import { formatDuration, goalForDate } from "@/lib/domain/time";
+import {
+  formatDuration,
+  formatSignedDuration,
+  goalForDate,
+} from "@/lib/domain/time";
+import { historyOverLimitSeconds } from "@/lib/domain/limit-display";
 import { canRevertTimeEntryCorrection } from "@/lib/domain/corrections";
 import type { TimeEntry } from "@/lib/domain/types";
 import { EntryDialog } from "./entry-dialog";
@@ -45,11 +58,32 @@ export function CalendarPage() {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<TimeEntry | undefined>();
   const [deleting, setDeleting] = useState<string | null>(null);
+  const entryActionTrigger = useRef<HTMLButtonElement>(null);
+  const historyRegion = useRef<HTMLDivElement>(null);
+  function returnToHistory() {
+    requestAnimationFrame(() => {
+      const trigger = entryActionTrigger.current;
+      if (trigger?.isConnected) trigger.focus();
+      else historyRegion.current?.focus();
+    });
+  }
+  const [historyOrder, setHistoryOrder] = useState<"latest" | "oldest">(
+    "latest",
+  );
   const cells = useMemo(() => monthCells(month), [month]);
   const entries = app.entries
     .filter((entry) => entry.localDate === selectedDate)
-    .sort((a, b) => (b.startedAt ?? "").localeCompare(a.startedAt ?? ""));
+    .sort((a, b) => {
+      if (!a.startedAt) return b.startedAt ? 1 : 0;
+      if (!b.startedAt) return -1;
+      const chronological = a.startedAt.localeCompare(b.startedAt);
+      return historyOrder === "latest" ? -chronological : chronological;
+    });
   const tasksById = new Map(app.tasks.map((task) => [task.id, task]));
+  const overLimitByEntry = useMemo(
+    () => historyOverLimitSeconds(app.entries, app.tasks, app.taskDailyTargets),
+    [app.entries, app.tasks, app.taskDailyTargets],
+  );
 
   function shiftMonth(amount: number) {
     const date = fromKey(`${month}-01`);
@@ -147,13 +181,83 @@ export function CalendarPage() {
           </div>
         </section>
         <aside className="day-detail">
-          <div className="section-heading">
+          <div className="day-summary">
             <div>
               <p className="eyebrow">Selected day</p>
               <h2>{selectedLabel}</h2>
             </div>
+            <div className="day-total">
+              <strong>
+                {formatDuration(app.totals.get(selectedDate) ?? 0)}
+              </strong>
+              <span>
+                tracked against{" "}
+                {formatDuration(
+                  goalForDate(
+                    app.dailyGoals,
+                    selectedDate,
+                    undefined,
+                    app.today,
+                  ),
+                )}
+              </span>
+            </div>
+          </div>
+          <div className="day-history-toolbar">
+            <Select.Root
+              value={historyOrder}
+              onValueChange={(value) =>
+                setHistoryOrder(value as "latest" | "oldest")
+              }
+            >
+              <Select.Trigger
+                className="history-sort"
+                aria-label={`History order: ${historyOrder === "latest" ? "Latest first" : "Oldest first"}`}
+              >
+                {historyOrder === "latest" ? (
+                  <ArrowDown size={16} aria-hidden />
+                ) : (
+                  <ArrowUp size={16} aria-hidden />
+                )}
+                <Select.Value />
+                <Select.Icon>
+                  <ChevronDown size={14} aria-hidden />
+                </Select.Icon>
+              </Select.Trigger>
+              <Select.Portal>
+                <Select.Content
+                  className="history-sort-menu entry-task-menu"
+                  position="popper"
+                  align="start"
+                  sideOffset={6}
+                  collisionPadding={14}
+                >
+                  <Select.Viewport>
+                    <Select.Item value="latest" className="entry-task-option">
+                      <div>
+                        <Select.ItemText>Latest first</Select.ItemText>
+                        <small>Recent timers at the top</small>
+                      </div>
+                      <Select.ItemIndicator>
+                        <Check size={16} aria-hidden />
+                      </Select.ItemIndicator>
+                    </Select.Item>
+                    <Select.Item value="oldest" className="entry-task-option">
+                      <div>
+                        <Select.ItemText>Oldest first</Select.ItemText>
+                        <small>Earlier timers at the top</small>
+                      </div>
+                      <Select.ItemIndicator>
+                        <Check size={16} aria-hidden />
+                      </Select.ItemIndicator>
+                    </Select.Item>
+                  </Select.Viewport>
+                  <p>Manual entries stay at the end.</p>
+                </Select.Content>
+              </Select.Portal>
+            </Select.Root>
             <button
-              className="primary-button"
+              className="primary-button calendar-add-time"
               onClick={() => setAdding(true)}
               disabled={app.tasks.length === 0}
             >
@@ -161,16 +265,14 @@ export function CalendarPage() {
               Add time
             </button>
           </div>
-          <div className="day-total">
-            <strong>{formatDuration(app.totals.get(selectedDate) ?? 0)}</strong>
-            <span>
-              tracked against{" "}
-              {formatDuration(
-                goalForDate(app.dailyGoals, selectedDate, undefined, app.today),
-              )}
-            </span>
-          </div>
-          <div className="history-list">
+          <div
+            className="history-list"
+            ref={historyRegion}
+            key={selectedDate}
+            role="region"
+            aria-label="Tracked entries"
+            tabIndex={0}
+          >
             {entries.length === 0 ? (
               <div className="empty-card">No tracked entries for this day.</div>
             ) : (
@@ -181,77 +283,135 @@ export function CalendarPage() {
                     style={{ background: tasksById.get(entry.taskId)?.color }}
                   />
                   <div>
-                    <h3>
+                    <h3
+                      title={
+                        tasksById.get(entry.taskId)?.name ?? "Archived task"
+                      }
+                    >
                       {tasksById.get(entry.taskId)?.name ?? "Archived task"}
                     </h3>
-                    <p>
-                      {entry.source === "timer"
-                        ? "Timer"
-                        : entry.source === "recovered"
-                          ? "Recovered checkpoint"
-                          : "Manual correction"}
-                      {entry.manuallyAdjusted && entry.source !== "manual"
-                        ? " · corrected"
-                        : ""}
-                    </p>
-                    {tasksById.get(entry.taskId) && (
-                      <p>
-                        Allotment:{" "}
-                        {formatDuration(
-                          taskTargetForDate(
-                            tasksById.get(entry.taskId)!,
-                            app.taskDailyTargets ?? [],
-                            entry.localDate,
-                          ),
-                        )}
-                      </p>
-                    )}
+                    <div className="history-entry-meta">
+                      <span
+                        className="history-entry-source"
+                        data-source={entry.source}
+                        data-corrected={
+                          entry.manuallyAdjusted && entry.source !== "manual"
+                        }
+                        title={
+                          entry.source === "recovered"
+                            ? "Recovered checkpoint"
+                            : undefined
+                        }
+                      >
+                        {entry.source === "timer"
+                          ? "Timer"
+                          : entry.source === "recovered"
+                            ? "Recovered"
+                            : "Manual addition"}
+                        {entry.manuallyAdjusted && entry.source !== "manual"
+                          ? " · corrected"
+                          : ""}
+                      </span>
+                      {tasksById.get(entry.taskId) && (
+                        <span className="history-entry-target">
+                          Allotment:{" "}
+                          {formatDuration(
+                            taskTargetForDate(
+                              tasksById.get(entry.taskId)!,
+                              app.taskDailyTargets ?? [],
+                              entry.localDate,
+                            ),
+                          )}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <strong>{formatDuration(entry.durationSeconds)}</strong>
-                  <div className="history-entry-actions">
-                    <button
-                      className="icon-button"
-                      aria-label={`Edit entry for ${tasksById.get(entry.taskId)?.name ?? "archived task"}`}
-                      onClick={() => setEditing(entry)}
-                    >
-                      <Pencil size={17} />
-                    </button>
-                    {canRevertTimeEntryCorrection(entry) && (
-                      <button
-                        className="icon-button"
-                        aria-label={`Revert correction for ${tasksById.get(entry.taskId)?.name ?? "archived task"}`}
-                        title="Restore the original timer entry and streak eligibility"
-                        onClick={() => void app.revertEntryCorrection(entry.id)}
-                      >
-                        <RotateCcw size={17} />
-                      </button>
+                  <strong
+                    className={
+                      overLimitByEntry.has(entry.id)
+                        ? "negative-duration"
+                        : undefined
+                    }
+                    title={
+                      overLimitByEntry.has(entry.id)
+                        ? `${formatDuration(entry.durationSeconds)} tracked; ${formatDuration(overLimitByEntry.get(entry.id)!)} over the daily limit`
+                        : undefined
+                    }
+                  >
+                    {formatSignedDuration(
+                      overLimitByEntry.has(entry.id)
+                        ? -overLimitByEntry.get(entry.id)!
+                        : entry.durationSeconds,
                     )}
-                    {deleting !== entry.id ? (
+                  </strong>
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger asChild>
                       <button
-                        className="icon-button danger-icon"
-                        aria-label={`Delete entry for ${tasksById.get(entry.taskId)?.name ?? "archived task"}`}
-                        onClick={() => setDeleting(entry.id)}
-                      >
-                        <Trash2 size={17} />
-                      </button>
-                    ) : (
-                      <button
-                        className="danger-button compact"
-                        onClick={() => {
-                          void app.deleteEntry(entry.id);
-                          setDeleting(null);
+                        className="icon-button history-entry-menu-trigger"
+                        onFocus={(event) => {
+                          entryActionTrigger.current = event.currentTarget;
                         }}
+                        onPointerDown={(event) => {
+                          entryActionTrigger.current = event.currentTarget;
+                        }}
+                        aria-label={`Entry actions for ${tasksById.get(entry.taskId)?.name ?? "archived task"}`}
                       >
-                        Confirm
+                        <MoreHorizontal size={19} aria-hidden />
                       </button>
-                    )}
-                  </div>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Portal>
+                      <DropdownMenu.Content
+                        className="history-actions-menu"
+                        align="end"
+                        sideOffset={6}
+                        collisionPadding={14}
+                      >
+                        <DropdownMenu.Item onSelect={() => setEditing(entry)}>
+                          <Pencil size={16} aria-hidden />
+                          Edit entry
+                        </DropdownMenu.Item>
+                        {canRevertTimeEntryCorrection(entry) && (
+                          <DropdownMenu.Item
+                            onSelect={() =>
+                              void app.revertEntryCorrection(entry.id)
+                            }
+                          >
+                            <RotateCcw size={16} aria-hidden />
+                            Restore original time
+                          </DropdownMenu.Item>
+                        )}
+                        <DropdownMenu.Separator />
+                        <DropdownMenu.Item
+                          className="history-delete-action"
+                          onSelect={() => setDeleting(entry.id)}
+                        >
+                          <Trash2 size={16} aria-hidden />
+                          Delete entry
+                        </DropdownMenu.Item>
+                      </DropdownMenu.Content>
+                    </DropdownMenu.Portal>
+                  </DropdownMenu.Root>
                 </article>
               ))
             )}
           </div>
         </aside>
       </div>
+      <ConfirmTaskAction
+        open={Boolean(deleting)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleting(null);
+            returnToHistory();
+          }
+        }}
+        title="Delete tracked entry?"
+        description="This removes the entry from your history and daily total. This cannot be undone."
+        confirmLabel="Delete entry"
+        onConfirm={async () => {
+          if (deleting) await app.deleteEntry(deleting);
+        }}
+      />
       <EntryDialog
         open={adding}
         onOpenChange={setAdding}
@@ -261,7 +421,12 @@ export function CalendarPage() {
       />
       <EntryDialog
         open={Boolean(editing)}
-        onOpenChange={(open) => !open && setEditing(undefined)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditing(undefined);
+            returnToHistory();
+          }
+        }}
         date={selectedDate}
         tasks={app.tasks}
         entry={editing}

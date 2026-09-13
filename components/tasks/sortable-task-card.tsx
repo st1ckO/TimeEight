@@ -17,7 +17,11 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { ActiveTimer, Task } from "@/lib/domain/types";
-import { formatDuration, taskDisplaySeconds } from "@/lib/domain/time";
+import {
+  formatDuration,
+  formatSignedDuration,
+  taskDisplaySeconds,
+} from "@/lib/domain/time";
 import { useTimeEight } from "@/components/app/app-provider";
 import { TaskDialog } from "./task-dialog";
 import { ConfirmTaskAction } from "./confirm-task-action";
@@ -126,9 +130,13 @@ export function SortableTaskCard({
           </div>
         </div>
         <div className="task-time">
-          <strong>
-            {formatDuration(displaySeconds, { clock: Boolean(timer) })}
-            {task.goalKind === "limit" && !timer ? " left" : ""}
+          <strong
+            className={displaySeconds < 0 ? "negative-duration" : undefined}
+          >
+            {formatSignedDuration(displaySeconds, { clock: Boolean(timer) })}
+            {task.goalKind === "limit" && !timer && displaySeconds >= 0
+              ? " left"
+              : ""}
           </strong>
           <button
             type="button"
@@ -242,40 +250,16 @@ export function SortableTaskCard({
           document.getElementById("add-daily-task")?.focus();
         }}
       />
-      {confirmOverride && (
-        <div className="dialog-overlay">
-          <div
-            className="confirm-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="limit-title"
-          >
-            <p className="eyebrow">Limit reached</p>
-            <h2 id="limit-title">Continue {task.name}?</h2>
-            <p>
-              You reached today’s limit. Continuing is always your choice, and
-              the extra time will still be tracked.
-            </p>
-            <div>
-              <button
-                className="secondary-button"
-                onClick={() => setConfirmOverride(false)}
-              >
-                Keep paused
-              </button>
-              <button
-                className="primary-button"
-                onClick={() => {
-                  void startTimer(task.id, true);
-                  setConfirmOverride(false);
-                }}
-              >
-                Continue anyway
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmTaskAction
+        open={confirmOverride}
+        onOpenChange={setConfirmOverride}
+        eyebrow="Limit reached"
+        title={`Continue ${task.name}?`}
+        description="You reached today’s limit. Continuing is always your choice, but the extra time will not be tracked."
+        cancelLabel="Keep paused"
+        confirmLabel="Continue anyway"
+        onConfirm={() => startTimer(task.id, true)}
+      />
     </>
   );
 }

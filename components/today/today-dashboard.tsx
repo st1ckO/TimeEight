@@ -15,19 +15,23 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Plus } from "lucide-react";
+import { Plus, Pause, Timer } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useTimeEight } from "@/components/app/app-provider";
 import {
   elapsedSecondsForDate,
+  elapsedSeconds,
   DAILY_GOAL_SECONDS,
   formatDuration,
+  formatSignedDuration,
+  taskDisplaySeconds,
 } from "@/lib/domain/time";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { StreakBadge } from "@/components/ui/streak-badge";
 import { StreakSaverBadge } from "@/components/ui/streak-saver-badge";
 import { SortableTaskCard } from "@/components/tasks/sortable-task-card";
+import { ConfirmTaskAction } from "@/components/tasks/confirm-task-action";
 import { TaskDialog } from "@/components/tasks/task-dialog";
 import { TaskLibraryDialog } from "@/components/tasks/task-library-dialog";
 import { dailyTasks } from "@/lib/domain/task-list";
@@ -38,6 +42,7 @@ import { phraseForDate } from "./daily-phrase";
 export function TodayDashboard() {
   const app = useTimeEight();
   const [adding, setAdding] = useState(false);
+  const [confirmPauseAll, setConfirmPauseAll] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const activeTasks = dailyTasks(app.tasks);
   const dailyGoal = DAILY_GOAL_SECONDS;
@@ -131,13 +136,14 @@ export function TodayDashboard() {
       <section className="today-grid" aria-label="Today's progress">
         <article className="daily-card">
           <ProgressRing
+            size={152}
             value={dailyPercent}
             label={`${dailyPercent}% of daily goal`}
           >
             <strong>{formatDuration(todaySeconds)}</strong>
             <span>of {formatDuration(dailyGoal)}</span>
           </ProgressRing>
-          <div>
+          <div className="daily-summary">
             <p className="eyebrow">Today’s rhythm</p>
             <h2>{phraseForDate(app.today)}</h2>
             <p className="muted">
@@ -158,6 +164,94 @@ export function TodayDashboard() {
               />
             </div>
           </div>
+        </article>
+        <article
+          className="active-timers-card"
+          aria-labelledby="active-timers-title"
+        >
+          <div className="active-timers-heading">
+            <div>
+              <h2 id="active-timers-title">Active timers</h2>
+            </div>
+            {app.activeTimers.length > 1 && (
+              <button
+                className="secondary-button"
+                onClick={() => setConfirmPauseAll(true)}
+              >
+                Pause all
+              </button>
+            )}
+          </div>
+          {!app.hydrated ? (
+            <p className="active-timers-empty">Loading your timers…</p>
+          ) : app.activeTimers.length === 0 ? (
+            <div className="active-timers-empty">
+              <Timer size={28} aria-hidden />
+              <strong>No timers running</strong>
+              <p>
+                Start a timer from your daily list. It will appear here while it
+                runs.
+              </p>
+            </div>
+          ) : (
+            <ul
+              className="active-timers-list"
+              tabIndex={0}
+              aria-label="Running timer sessions"
+            >
+              {app.activeTimers.map((timer) => {
+                const task = app.tasks.find((task) => task.id === timer.taskId);
+                const displaySeconds =
+                  task?.goalKind === "limit"
+                    ? taskDisplaySeconds(
+                        "limit",
+                        (trackedByTask.get(task.id) ?? 0) +
+                          elapsedSecondsForDate(timer, app.today, app.now),
+                        taskTargetForDate(
+                          task,
+                          app.taskDailyTargets,
+                          app.today,
+                        ),
+                      )
+                    : elapsedSeconds(timer, app.now);
+                return (
+                  <li key={timer.id}>
+                    <span
+                      className="active-task-dot"
+                      style={{ background: task?.color ?? "var(--teal)" }}
+                      aria-hidden
+                    />
+                    <div className="active-timer-copy">
+                      <strong title={task?.name ?? "Task timer"}>
+                        {task?.name ?? "Task timer"}
+                      </strong>
+                      {displaySeconds >= 0 && (
+                        <span>
+                          {task?.goalKind === "limit"
+                            ? "Time remaining"
+                            : "Current session"}
+                        </span>
+                      )}
+                    </div>
+                    <span
+                      className={`active-timer-duration ${displaySeconds < 0 ? "negative-duration" : ""}`}
+                    >
+                      {formatSignedDuration(displaySeconds, {
+                        clock: true,
+                      })}
+                    </span>
+                    <button
+                      className="secondary-button active-timer-pause"
+                      aria-label={`Pause active timer ${task?.name ?? "task"}`}
+                      onClick={() => void app.pauseTimer(timer.taskId)}
+                    >
+                      <Pause size={18} fill="currentColor" aria-hidden />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </article>
       </section>
       <section className="tasks-section">
@@ -229,6 +323,15 @@ export function TodayDashboard() {
           </DndContext>
         )}
       </section>
+      <ConfirmTaskAction
+        open={confirmPauseAll}
+        onOpenChange={setConfirmPauseAll}
+        title="Pause all timers?"
+        description="All running timers will pause and their elapsed time will be saved. You can restart each timer when you’re ready."
+        cancelLabel="Keep running"
+        confirmLabel="Pause all timers"
+        onConfirm={app.pauseAll}
+      />
       <TaskDialog
         open={adding}
         onOpenChange={setAdding}

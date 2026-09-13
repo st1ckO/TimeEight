@@ -1,7 +1,7 @@
 "use client";
 
 import * as Dialog from "@radix-ui/react-dialog";
-import { useRef, useState } from "react";
+import { type RefObject, useRef, useState } from "react";
 
 export function ConfirmTaskAction({
   open,
@@ -9,6 +9,12 @@ export function ConfirmTaskAction({
   title,
   description,
   confirmLabel,
+  cancelLabel = "Cancel",
+  eyebrow,
+  compact = false,
+  pendingLabel = "Saving…",
+  errorMessage = "Couldn't save this change. Please try again.",
+  returnFocusRef,
   onConfirm,
 }: {
   open: boolean;
@@ -16,6 +22,12 @@ export function ConfirmTaskAction({
   title: string;
   description: string;
   confirmLabel: string;
+  cancelLabel?: string;
+  eyebrow?: string;
+  compact?: boolean;
+  pendingLabel?: string;
+  errorMessage?: string;
+  returnFocusRef?: RefObject<HTMLButtonElement | null>;
   onConfirm(): Promise<void>;
 }) {
   const cancelButton = useRef<HTMLButtonElement>(null);
@@ -30,7 +42,7 @@ export function ConfirmTaskAction({
       await onConfirm();
       onOpenChange(false);
     } catch {
-      setError("Couldn't save this change. Please try again.");
+      setError(errorMessage);
     } finally {
       setPending(false);
     }
@@ -49,12 +61,23 @@ export function ConfirmTaskAction({
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
         <Dialog.Content
-          className="dialog-content task-dialog"
+          className={[
+            "dialog-content",
+            "task-dialog",
+            compact ? "confirm-compact" : "",
+          ].join(" ")}
+          onCloseAutoFocus={(event) => {
+            if (returnFocusRef) {
+              event.preventDefault();
+              returnFocusRef.current?.focus();
+            }
+          }}
           onOpenAutoFocus={(event) => {
             event.preventDefault();
             cancelButton.current?.focus();
           }}
         >
+          {eyebrow && <p className="eyebrow">{eyebrow}</p>}
           <div className="dialog-heading">
             <Dialog.Title>{title}</Dialog.Title>
           </div>
@@ -73,14 +96,14 @@ export function ConfirmTaskAction({
               disabled={pending}
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              {cancelLabel}
             </button>
             <button
               className="primary-button form-primary"
               disabled={pending}
               onClick={() => void confirm()}
             >
-              {pending ? "Saving…" : confirmLabel}
+              {pending ? pendingLabel : confirmLabel}
             </button>
           </div>
         </Dialog.Content>

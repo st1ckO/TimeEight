@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  BarChart3,
-  CalendarDays,
-  Home,
-  Pause,
-  Settings,
-  X,
-} from "lucide-react";
+import { BarChart3, CalendarDays, Home, Settings, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandWordmark } from "@/components/ui/brand-wordmark";
@@ -23,7 +16,7 @@ const destinations = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { activeTimers, pauseAll, profile, syncState, notice, dismissNotice } =
+  const { activeTimers, profile, syncState, notice, dismissNotice } =
     useTimeEight();
   const initials =
     profile.displayName
@@ -81,7 +74,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      {activeTimers.length > 0 && (
+      {activeTimers.length > 0 && pathname !== "/today" && (
         <div className="active-dock" role="status" aria-live="polite">
           <span className="pulse-dot" aria-hidden="true" />
           <div>
@@ -91,15 +84,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {activeTimers.length === 1 ? "timer" : "timers"} active
             </span>
           </div>
-          <button
-            type="button"
-            aria-label="Pause all"
-            title="Pause all timers"
-            onClick={() => void pauseAll()}
-          >
-            <Pause size={16} />
-            <span>Pause all</span>
-          </button>
         </div>
       )}
 
