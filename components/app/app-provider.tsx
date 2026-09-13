@@ -34,6 +34,10 @@ import {
 } from "@/lib/domain/time";
 import { aggregateStreakEntries, calculateStreak } from "@/lib/domain/streak";
 import { aggregateGoalProgress } from "@/lib/domain/goal-progress";
+import {
+  overridesLimitOnDate,
+  timerLimitStopAt,
+} from "@/lib/domain/timer-limits";
 import { useTimerLeaveWarning } from "./use-timer-leave-warning";
 import {
   taskSchema,
@@ -524,18 +528,32 @@ export function AppProvider({
       if (restoringRef.current) return;
       const timer = activeRef.current.find((item) => item.taskId === taskId);
       if (!timer) return;
-      const endedAt = new Date().toISOString();
       const task = tasks.find((item) => item.id === taskId);
+      const stopAt =
+        task && !preserveElapsed
+          ? timerLimitStopAt(
+              timer,
+              task,
+              entries,
+              targetsRef.current,
+              Date.now(),
+            )
+          : null;
+      const endedAt = new Date(stopAt ?? Date.now()).toISOString();
       const duration = elapsedSeconds(timer, Date.parse(endedAt));
       const slices = splitDurationAcrossLocalDates(
         timer.startedAt,
-        new Date(Date.parse(timer.startedAt) + duration * 1000).toISOString(),
+        new Date(
+          stopAt !== null
+            ? stopAt + timer.accumulatedSeconds * 1000
+            : Date.parse(timer.startedAt) + duration * 1000,
+        ).toISOString(),
         timer.timezone,
       ).flatMap((slice) => {
         if (
           !task ||
           task.goalKind !== "limit" ||
-          timer.limitOverride ||
+          overridesLimitOnDate(timer, slice.localDate) ||
           preserveElapsed
         )
           return [slice];
@@ -608,6 +626,19 @@ export function AppProvider({
   const pauseAll = useCallback(async () => {
     for (const timer of [...activeRef.current]) await pauseTimer(timer.taskId);
   }, [pauseTimer]);
+
+  useEffect(() => {
+    if (!hydrated || restoringRef.current) return;
+    for (const timer of activeRef.current) {
+      const task = tasks.find((item) => item.id === timer.taskId);
+      if (
+        task &&
+        timerLimitStopAt(timer, task, entries, taskDailyTargets, now) !== null
+      ) {
+        void pauseTimer(task.id);
+      }
+    }
+  }, [hydrated, tasks, entries, taskDailyTargets, now, pauseTimer]);
 
   useEffect(() => {
     const onPageHide = () => {

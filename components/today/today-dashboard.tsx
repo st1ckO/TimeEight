@@ -17,7 +17,7 @@ import {
 } from "@dnd-kit/sortable";
 import { Plus, Pause, Timer } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTimeEight } from "@/components/app/app-provider";
 import {
   elapsedSecondsForDate,
@@ -68,18 +68,6 @@ export function TodayDashboard() {
       );
     return result;
   }, [app.entries, app.today]);
-
-  useEffect(() => {
-    for (const timer of app.activeTimers) {
-      const task = activeTasks.find((item) => item.id === timer.taskId);
-      if (!task || task.goalKind !== "limit" || timer.limitOverride) continue;
-      const total =
-        (trackedByTask.get(task.id) ?? 0) +
-        elapsedSecondsForDate(timer, app.today, app.now);
-      if (total >= taskTargetForDate(task, app.taskDailyTargets, app.today))
-        void app.pauseTimer(task.id);
-    }
-  }, [activeTasks, app, trackedByTask]);
 
   function reorder(from: number, to: number) {
     if (to < 0 || to >= activeTasks.length) return;

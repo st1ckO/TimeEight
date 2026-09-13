@@ -131,13 +131,13 @@ export function splitDurationAcrossLocalDates(
     }
 
     let low = cursor;
-    while (high - low > 1000) {
+    while (high - low > 1) {
       const middle = low + Math.floor((high - low) / 2);
       if (localDateAt(middle, timezone) === date) low = middle;
       else high = middle;
     }
 
-    const boundary = Math.min(endMs, Math.ceil(high / 1000) * 1000);
+    const boundary = Math.min(endMs, high);
     const seconds = Math.max(1, Math.round((boundary - cursor) / 1000));
     slices.push({
       localDate: date,
