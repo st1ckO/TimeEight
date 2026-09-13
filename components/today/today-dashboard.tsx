@@ -17,7 +17,7 @@ import {
 } from "@dnd-kit/sortable";
 import { Plus, Pause, Timer } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTimeEight } from "@/components/app/app-provider";
 import {
   elapsedSecondsForDate,
@@ -46,7 +46,7 @@ export function TodayDashboard() {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const activeTasks = dailyTasks(app.tasks);
   const dailyGoal = DAILY_GOAL_SECONDS;
-  const todaySeconds = app.totals.get(app.today) ?? 0;
+  const todaySeconds = app.goalTotals.get(app.today) ?? 0;
   const dailyPercent = Math.round((todaySeconds / dailyGoal) * 100);
   const streakTodaySeconds = app.streakTotals.get(app.today) ?? 0;
   const sensors = useSensors(
@@ -68,18 +68,6 @@ export function TodayDashboard() {
       );
     return result;
   }, [app.entries, app.today]);
-
-  useEffect(() => {
-    for (const timer of app.activeTimers) {
-      const task = activeTasks.find((item) => item.id === timer.taskId);
-      if (!task || task.goalKind !== "limit" || timer.limitOverride) continue;
-      const total =
-        (trackedByTask.get(task.id) ?? 0) +
-        elapsedSecondsForDate(timer, app.today, app.now);
-      if (total >= taskTargetForDate(task, app.taskDailyTargets, app.today))
-        void app.pauseTimer(task.id);
-    }
-  }, [activeTasks, app, trackedByTask]);
 
   function reorder(from: number, to: number) {
     if (to < 0 || to >= activeTasks.length) return;
@@ -104,20 +92,26 @@ export function TodayDashboard() {
     weekday: "long",
     month: "long",
     day: "numeric",
-    timeZone: app.profile.timezone,
-  }).format(new Date());
+    timeZone: "UTC",
+  }).format(new Date(`${app.today}T00:00:00Z`));
+  const localHour = Number(
+    new Intl.DateTimeFormat("en", {
+      hour: "numeric",
+      hourCycle: "h23",
+      timeZone: app.profile.timezone,
+    }).format(app.now),
+  );
   return (
     <>
       <header className="topbar">
         <div>
-          <p className="eyebrow">{dateLabel}</p>
+          <p className="eyebrow">
+            {app.hydrated ? dateLabel : "Loading your day…"}
+          </p>
           <h1>
-            Good{" "}
-            {new Date().getHours() < 12
-              ? "morning"
-              : new Date().getHours() < 18
-                ? "afternoon"
-                : "evening"}
+            {app.hydrated
+              ? `Good ${localHour < 12 ? "morning" : localHour < 18 ? "afternoon" : "evening"}`
+              : "Hello"}
             , {app.profile.displayName || "friend"}.
           </h1>
         </div>

@@ -106,6 +106,11 @@ test("keeps the rhythm phrase through reloads and updates on a new local day", a
   page,
 }) => {
   await page.clock.install({ time: new Date("2026-09-13T04:00:00Z") });
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") pageErrors.push(message.text());
+  });
   await page.goto("/today");
   await expect(page.getByText("Today’s rhythm", { exact: true })).toBeVisible();
   await expect(
@@ -128,4 +133,5 @@ test("keeps the rhythm phrase through reloads and updates on a new local day", a
       exact: true,
     }),
   ).toBeVisible();
+  expect(pageErrors).toEqual([]);
 });

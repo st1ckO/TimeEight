@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { backupSchema, prepareBackup } from "./backup";
 import { aggregateStreakEntries } from "./streak";
+import { aggregateGoalProgress } from "./goal-progress";
 
 function fixture() {
   const taskId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -66,6 +67,29 @@ function fixture() {
 }
 
 describe("backup restore validation", () => {
+  it("preserves limit credit through a current-version backup round trip", () => {
+    const { dailyGoals, ...input } = fixture();
+    void dailyGoals;
+    input.tasks[0]!.goalKind = "limit";
+    const restored = prepareBackup(
+      { ...input, schemaVersion: 2 },
+      "local-demo",
+      "2026-09-13",
+    );
+    const exported = backupSchema.parse({
+      ...restored,
+      exportedAt: "2026-09-13T12:00:00Z",
+    });
+    const roundTrip = prepareBackup(exported, "local-demo", "2026-09-13");
+    expect(
+      aggregateGoalProgress(
+        roundTrip.entries,
+        roundTrip.tasks,
+        roundTrip.taskDailyTargets,
+      ).get("2020-01-01"),
+    ).toBe(1800);
+    expect(roundTrip.entries[0]!.durationSeconds).toBe(3600);
+  });
   it("accepts version 2 backups without goals and ignores legacy goal data", () => {
     const { dailyGoals, ...input } = fixture();
     void dailyGoals;

@@ -53,8 +53,10 @@ function monthCells(monthKey: string) {
 
 export function CalendarPage() {
   const app = useTimeEight();
-  const [month, setMonth] = useState(app.today.slice(0, 7));
-  const [selectedDate, setSelectedDate] = useState(app.today);
+  const [chosenMonth, setMonth] = useState<string | null>(null);
+  const [chosenDate, setSelectedDate] = useState<string | null>(null);
+  const month = chosenMonth ?? app.today.slice(0, 7);
+  const selectedDate = chosenDate ?? app.today;
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<TimeEntry | undefined>();
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -142,13 +144,14 @@ export function CalendarPage() {
           <div className="calendar-grid">
             {cells.map((date) => {
               const seconds = app.totals.get(date) ?? 0;
+              const goalSeconds = app.goalTotals.get(date) ?? 0;
               const goal = goalForDate(
                 app.dailyGoals,
                 date,
                 undefined,
                 app.today,
               );
-              const percent = Math.round((seconds / goal) * 100);
+              const percent = Math.round((goalSeconds / goal) * 100);
               const inMonth = date.startsWith(month);
               const protectedDay = app.streak.protectedDates.includes(date);
               return (
@@ -163,7 +166,7 @@ export function CalendarPage() {
                     size={48}
                     strokeWidth={8}
                     value={percent}
-                    label={`${date}: ${formatDuration(seconds)} tracked of ${formatDuration(goal)} goal`}
+                    label={`${date}: ${formatDuration(goalSeconds)} toward ${formatDuration(goal)} goal`}
                   />
                   {protectedDay && (
                     <ShieldCheck
@@ -421,10 +424,10 @@ export function CalendarPage() {
       />
       <EntryDialog
         open={Boolean(editing)}
+        onCloseAutoFocus={returnToHistory}
         onOpenChange={(open) => {
           if (!open) {
             setEditing(undefined);
-            returnToHistory();
           }
         }}
         date={selectedDate}
