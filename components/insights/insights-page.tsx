@@ -22,6 +22,9 @@ export function InsightsPage() {
     [app.entries, app.today],
   );
   const tasks = new Map(app.tasks.map((task) => [task.id, task]));
+  const longestSessionDate = app.entries.find(
+    (entry) => entry.id === insights.longestSession?.entryId,
+  )?.localDate;
   const bestWeek = insights.mostTrackedWeek?.seconds ?? 0;
   const comparison = bestWeek
     ? Math.round((insights.currentWeekSeconds / bestWeek) * 100)
@@ -88,6 +91,7 @@ export function InsightsPage() {
               ? (tasks.get(insights.longestSession.taskId)?.name ??
                 "Archived task")
               : "Manual entries count too"}
+            {longestSessionDate && ` · ${dateLabel(longestSessionDate)}`}
           </small>
         </article>
       </section>
