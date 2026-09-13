@@ -1,6 +1,78 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
+test("saves settings only when preferences change", async ({
+  page,
+}, testInfo) => {
+  await page
+    .getByRole("link", { name: "Settings", exact: true })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Settings", exact: true }),
+  ).toBeVisible();
+  const save = page.getByRole("button", { name: "Save changes", exact: true });
+  const name = page.getByLabel("Display name", { exact: true });
+  const originalName = await name.inputValue();
+  const timezone = page.getByRole("combobox", { name: /Timezone/ });
+  const originalTimezone = await timezone.inputValue();
+  await expect(save).toBeDisabled();
+  await name.fill(originalName + " edited");
+  await expect(save).toBeEnabled();
+  await name.fill(originalName);
+  await expect(save).toBeDisabled();
+  await timezone.selectOption(
+    originalTimezone === "UTC" ? "Asia/Manila" : "UTC",
+  );
+  await expect(save).toBeEnabled();
+  await timezone.selectOption(originalTimezone);
+  await expect(save).toBeDisabled();
+  const selectedTheme = page.getByRole("radio", { checked: true });
+  const originalTheme = await selectedTheme.inputValue();
+  await selectedTheme.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(save).toBeEnabled();
+  await page
+    .locator(`.settings-theme-choice input[value="${originalTheme}"]`)
+    .focus();
+  await page.keyboard.press("Space");
+  await expect(save).toBeDisabled();
+  await name.fill(originalName + " edited");
+  await save.click();
+  await expect(
+    page.getByRole("button", { name: "Saved", exact: true }),
+  ).toBeDisabled();
+  await expect(page.getByRole("status")).toContainText("Changes saved.");
+  await name.fill(originalName + " another edit");
+  await expect(save).toBeEnabled();
+  await name.fill(originalName + " edited");
+  await expect(save).toBeDisabled();
+  await page.reload();
+  await expect(name).toHaveValue(originalName + " edited");
+  await expect(save).toBeDisabled();
+  for (const width of [1500, 320]) {
+    await page.setViewportSize({ width, height: 950 });
+    for (const theme of ["light", "dark"]) {
+      await page.evaluate(
+        (theme) => (document.documentElement.dataset.theme = theme),
+        theme,
+      );
+      const scan = await new AxeBuilder({ page })
+        .include(".settings-form")
+        .analyze();
+      expect(scan.violations).toEqual([]);
+      expect(
+        await page
+          .locator(".settings-form")
+          .evaluate((element) => element.scrollWidth <= element.clientWidth),
+      ).toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(`settings-${width}-${theme}.png`),
+      });
+    }
+  }
+});
+
 test("scrolls long history without growing the calendar", async ({ page }) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 1500, height: 950 });

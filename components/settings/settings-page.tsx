@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, LogOut, Save, Trash2 } from "lucide-react";
+import { Check, Download, LogOut, Save, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTimeEight } from "@/components/app/app-provider";
@@ -8,6 +8,12 @@ import type { ThemePreference } from "@/lib/domain/types";
 import { clearLocalUser } from "@/lib/offline/db";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/browser";
+
+const themes = [
+  { value: "system", label: "System" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+] as const;
 
 const zones = [
   "Asia/Manila",
@@ -30,16 +36,35 @@ export function SettingsPage() {
     null,
   );
   const [message, setMessage] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const name = nameOverride ?? app.profile.displayName;
   const timezone = timezoneOverride ?? app.profile.timezone;
   const theme = themeOverride ?? app.profile.theme;
+  const hasChanges =
+    name !== app.profile.displayName ||
+    timezone !== app.profile.timezone ||
+    theme !== app.profile.theme;
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
-    await app.updateProfile({ displayName: name, timezone, theme });
-    document.documentElement.dataset.theme = theme === "system" ? "" : theme;
-    setMessage("Settings saved for today and future tracking.");
+    if (!hasChanges || saving) return;
+    setSaving(true);
+    setMessage(null);
+    setSaved(false);
+    try {
+      await app.updateProfile({ displayName: name, timezone, theme });
+      document.documentElement.dataset.theme = theme === "system" ? "" : theme;
+      setNameOverride(null);
+      setTimezoneOverride(null);
+      setThemeOverride(null);
+      setSaved(true);
+    } catch {
+      setMessage("Couldn't save settings. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function exportData() {
@@ -93,7 +118,7 @@ export function SettingsPage() {
     <>
       <header className="page-header">
         <div>
-          <p className="eyebrow">Preferences and privacy</p>
+          <p className="eyebrow">Preferences</p>
           <h1>Settings</h1>
           <p>
             Make TimeEight feel like yours and keep your data under your
@@ -103,15 +128,16 @@ export function SettingsPage() {
       </header>
       <div className="settings-grid">
         <form className="settings-card settings-form" onSubmit={save}>
-          <div>
-            <p className="eyebrow">Profile</p>
-            <h2>Your day</h2>
-          </div>
           <label>
             Display name
             <input
               value={name}
-              onChange={(event) => setNameOverride(event.target.value)}
+              disabled={saving}
+              onChange={(event) => {
+                setNameOverride(event.target.value);
+                setMessage(null);
+                setSaved(false);
+              }}
               maxLength={80}
             />
           </label>
@@ -119,7 +145,12 @@ export function SettingsPage() {
             Timezone
             <select
               value={timezone}
-              onChange={(event) => setTimezoneOverride(event.target.value)}
+              disabled={saving}
+              onChange={(event) => {
+                setTimezoneOverride(event.target.value);
+                setMessage(null);
+                setSaved(false);
+              }}
             >
               {[...new Set([timezone, ...zones])].map((zone) => (
                 <option key={zone}>{zone}</option>
@@ -127,29 +158,60 @@ export function SettingsPage() {
             </select>
             <small>Changes apply only to future tracking.</small>
           </label>
-          <fieldset>
+          <fieldset className="settings-theme-field" disabled={saving}>
             <legend>Theme</legend>
-            <div className="segmented three">
-              {(["system", "light", "dark"] as ThemePreference[]).map(
-                (option) => (
-                  <button
-                    type="button"
-                    key={option}
-                    className={theme === option ? "selected" : ""}
-                    onClick={() => setThemeOverride(option)}
-                  >
-                    {option}
-                  </button>
-                ),
-              )}
+            <div className="settings-theme-options">
+              {themes.map(({ value, label }) => (
+                <label
+                  className="settings-theme-choice"
+                  data-preview={value}
+                  key={value}
+                >
+                  <input
+                    type="radio"
+                    name="theme"
+                    value={value}
+                    checked={theme === value}
+                    onChange={() => {
+                      setThemeOverride(value);
+                      setMessage(null);
+                      setSaved(false);
+                    }}
+                  />
+                  <span className="theme-preview" aria-hidden="true">
+                    <span className="theme-preview-window">
+                      <span className="theme-preview-sidebar" />
+                      <span className="theme-preview-content">
+                        <span className="theme-preview-heading" />
+                        <span className="theme-preview-card" />
+                        <span className="theme-preview-line" />
+                      </span>
+                    </span>
+                  </span>
+                  <span className="theme-choice-caption">
+                    <span className="theme-choice-dot" aria-hidden="true" />
+                    {label}
+                  </span>
+                </label>
+              ))}
             </div>
           </fieldset>
-          <button className="primary-button">
-            <Save size={18} />
-            Save settings
+          <button
+            className="primary-button settings-save"
+            disabled={!hasChanges || saving}
+          >
+            {saved ? (
+              <Check size={16} aria-hidden />
+            ) : (
+              <Save size={16} aria-hidden />
+            )}
+            {saving ? "Saving…" : saved ? "Saved" : "Save changes"}
           </button>
+          <span className="settings-save-announcement" role="status">
+            {saved ? "Changes saved." : ""}
+          </span>
           {message && (
-            <p className="form-message" role="status">
+            <p className="form-message" role="alert">
               {message}
             </p>
           )}
