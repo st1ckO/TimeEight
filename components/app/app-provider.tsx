@@ -33,6 +33,7 @@ import {
   splitDurationAcrossLocalDates,
 } from "@/lib/domain/time";
 import { aggregateStreakEntries, calculateStreak } from "@/lib/domain/streak";
+import { aggregateGoalProgress } from "@/lib/domain/goal-progress";
 import { useTimerLeaveWarning } from "./use-timer-leave-warning";
 import {
   taskSchema,
@@ -109,6 +110,7 @@ interface AppContextValue {
   notice: string | null;
   today: string;
   totals: Map<string, number>;
+  goalTotals: Map<string, number>;
   streakTotals: Map<string, number>;
   streak: ReturnType<typeof calculateStreak>;
   addTask(input: AddTaskInput): Promise<void>;
@@ -1146,6 +1148,17 @@ export function AppProvider({
       addActiveTimerTotals(aggregateStreakEntries(entries), activeTimers, now),
     [activeTimers, entries, now],
   );
+  const goalTotals = useMemo(
+    () =>
+      aggregateGoalProgress(
+        entries,
+        tasks,
+        taskDailyTargets,
+        activeTimers,
+        now,
+      ),
+    [entries, tasks, taskDailyTargets, activeTimers, now],
+  );
   const streak = useMemo(
     () => calculateStreak(streakTotals, today, profile.accountStart),
     [profile.accountStart, streakTotals, today],
@@ -1164,6 +1177,7 @@ export function AppProvider({
     notice,
     today,
     totals,
+    goalTotals,
     streakTotals,
     streak,
     addTask,

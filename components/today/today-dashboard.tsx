@@ -46,7 +46,7 @@ export function TodayDashboard() {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const activeTasks = dailyTasks(app.tasks);
   const dailyGoal = DAILY_GOAL_SECONDS;
-  const todaySeconds = app.totals.get(app.today) ?? 0;
+  const todaySeconds = app.goalTotals.get(app.today) ?? 0;
   const dailyPercent = Math.round((todaySeconds / dailyGoal) * 100);
   const streakTodaySeconds = app.streakTotals.get(app.today) ?? 0;
   const sensors = useSensors(

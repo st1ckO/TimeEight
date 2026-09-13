@@ -67,6 +67,7 @@ describe("CalendarPage corrections", () => {
         },
       ],
       totals: new Map([["2026-09-12", 3_600]]),
+      goalTotals: new Map([["2026-09-12", 1_800]]),
       dailyGoals: [
         {
           id: "goal-1",
@@ -81,6 +82,14 @@ describe("CalendarPage corrections", () => {
       deleteEntry: vi.fn(),
       revertEntryCorrection,
     } as unknown as ReturnType<typeof useTimeEight>);
+  });
+
+  it("uses goal credit for rings while retaining full tracked history totals", () => {
+    render(<CalendarPage />);
+    expect(
+      screen.getByRole("img", { name: "2026-09-12: 30m toward 8h 0m goal" }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("1h 0m").length).toBeGreaterThan(0);
   });
 
   it("offers revert only for a corrected timer entry", async () => {
