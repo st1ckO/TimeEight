@@ -146,6 +146,7 @@ export function EntryDialog({
   tasks,
   entry,
   onSave,
+  onCloseAutoFocus,
 }: {
   open: boolean;
   onOpenChange(open: boolean): void;
@@ -157,12 +158,23 @@ export function EntryDialog({
     localDate: string;
     durationSeconds: number;
   }): Promise<void>;
+  onCloseAutoFocus?: () => void;
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
-        <Dialog.Content className="dialog-content entry-dialog">
+        <Dialog.Content
+          className="dialog-content entry-dialog"
+          onCloseAutoFocus={
+            onCloseAutoFocus
+              ? (event) => {
+                  event.preventDefault();
+                  onCloseAutoFocus();
+                }
+              : undefined
+          }
+        >
           <div className="dialog-heading">
             <div>
               <p className="eyebrow">Time history</p>

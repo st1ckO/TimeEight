@@ -48,6 +48,9 @@ test("expires yesterday's continuation and pauses at today's limit on Calendar",
     .click();
   await page.getByRole("button", { name: "Add time", exact: true }).click();
   const dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("Date", { exact: true })).toHaveValue(
+    "2026-09-13",
+  );
   await dialog.getByRole("combobox").click();
   await page.getByRole("option", { name: "Watch list", exact: true }).click();
   await dialog.getByLabel("Hours", { exact: true }).fill("1");

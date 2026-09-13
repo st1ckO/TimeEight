@@ -1169,7 +1169,7 @@ export function AppProvider({
     window.location.reload();
   }
 
-  const today = todayKey(profile.timezone);
+  const today = hydrated ? todayKey(profile.timezone) : initialAccountStart;
   const totals = useMemo(
     () => addActiveTimerTotals(aggregateEntries(entries), activeTimers, now),
     [activeTimers, entries, now],

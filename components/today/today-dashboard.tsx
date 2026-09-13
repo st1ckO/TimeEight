@@ -92,20 +92,26 @@ export function TodayDashboard() {
     weekday: "long",
     month: "long",
     day: "numeric",
-    timeZone: app.profile.timezone,
-  }).format(new Date());
+    timeZone: "UTC",
+  }).format(new Date(`${app.today}T00:00:00Z`));
+  const localHour = Number(
+    new Intl.DateTimeFormat("en", {
+      hour: "numeric",
+      hourCycle: "h23",
+      timeZone: app.profile.timezone,
+    }).format(app.now),
+  );
   return (
     <>
       <header className="topbar">
         <div>
-          <p className="eyebrow">{dateLabel}</p>
+          <p className="eyebrow">
+            {app.hydrated ? dateLabel : "Loading your day…"}
+          </p>
           <h1>
-            Good{" "}
-            {new Date().getHours() < 12
-              ? "morning"
-              : new Date().getHours() < 18
-                ? "afternoon"
-                : "evening"}
+            {app.hydrated
+              ? `Good ${localHour < 12 ? "morning" : localHour < 18 ? "afternoon" : "evening"}`
+              : "Hello"}
             , {app.profile.displayName || "friend"}.
           </h1>
         </div>

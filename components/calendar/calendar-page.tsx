@@ -53,8 +53,10 @@ function monthCells(monthKey: string) {
 
 export function CalendarPage() {
   const app = useTimeEight();
-  const [month, setMonth] = useState(app.today.slice(0, 7));
-  const [selectedDate, setSelectedDate] = useState(app.today);
+  const [chosenMonth, setMonth] = useState<string | null>(null);
+  const [chosenDate, setSelectedDate] = useState<string | null>(null);
+  const month = chosenMonth ?? app.today.slice(0, 7);
+  const selectedDate = chosenDate ?? app.today;
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<TimeEntry | undefined>();
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -422,10 +424,10 @@ export function CalendarPage() {
       />
       <EntryDialog
         open={Boolean(editing)}
+        onCloseAutoFocus={returnToHistory}
         onOpenChange={(open) => {
           if (!open) {
             setEditing(undefined);
-            returnToHistory();
           }
         }}
         date={selectedDate}
