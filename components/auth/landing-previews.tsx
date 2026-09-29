@@ -11,14 +11,19 @@ import {
 } from "lucide-react";
 
 const previewTasks = [
-  { name: "Morning walk", meta: "Build time", time: "42m", tone: "teal" },
+  { name: "Walking", meta: "Build time", time: "42m", tone: "teal" },
   {
-    name: "Portfolio project",
+    name: "Reading",
     meta: "Build time",
     time: "1h 18m",
     tone: "blue",
   },
-  { name: "Watch list", meta: "Limit time", time: "34m left", tone: "amber" },
+  {
+    name: "Social media",
+    meta: "Limit time",
+    time: "34m left",
+    tone: "amber",
+  },
 ];
 
 export function LandingHeroPreview() {
@@ -56,7 +61,7 @@ export function LandingHeroPreview() {
           <div className="landing-preview-heading">
             <div>
               <small>WEDNESDAY, SEPTEMBER 30</small>
-              <strong>Good morning, Ralph.</strong>
+              <strong>Good morning, Alex.</strong>
             </div>
           </div>
           <div className="landing-preview-summary">
@@ -75,7 +80,7 @@ export function LandingHeroPreview() {
               <small>ACTIVE TIMERS</small>
               <b>2 running</b>
               <span>
-                <i /> Portfolio project
+                <i /> Reading
               </span>
             </div>
           </div>

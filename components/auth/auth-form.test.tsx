@@ -9,7 +9,9 @@ vi.mock("next/navigation", () => ({
 
 describe("AuthForm", () => {
   it("introduces the product before the account controls", () => {
-    render(<AuthForm configured emailEnabled={false} turnstileSiteKey="" />);
+    const { container } = render(
+      <AuthForm configured emailEnabled={false} turnstileSiteKey="" />,
+    );
 
     expect(
       screen.getByRole("heading", {
@@ -31,6 +33,11 @@ describe("AuthForm", () => {
     expect(
       screen.getByRole("heading", { name: /see your patterns/i }),
     ).toBeInTheDocument();
+    expect(container).toHaveTextContent("Good morning, Alex.");
+    expect(container).toHaveTextContent("Walking");
+    expect(container).toHaveTextContent("Reading");
+    expect(container).toHaveTextContent("Social media");
+    expect(container).toHaveTextContent("Limit time");
   });
 
   it("keeps production email auth hidden until SMTP is enabled", () => {
