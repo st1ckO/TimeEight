@@ -64,6 +64,50 @@ async function dbTimezone(userId: string) {
   return (await getLocalDatabase()?.profiles.get(userId))?.timezone ?? "UTC";
 }
 
+function referencedTaskIds(mutation: PendingMutation) {
+  const payload = mutation.payload;
+  switch (mutation.kind) {
+    case "task-upsert":
+    case "entry-delete":
+    case "profile-update":
+    case "goal-upsert":
+      return [];
+    case "task-archive":
+    case "task-list-state":
+    case "task-settings-update":
+      return [payload.id as string];
+    case "task-target-snapshot":
+    case "task-target-upsert":
+    case "timer-start":
+    case "entry-upsert":
+      return [payload.taskId as string];
+    case "timer-stop":
+      return Array.isArray(payload.entries)
+        ? (payload.entries as Record<string, unknown>[])
+            .map((entry) => entry.taskId)
+            .filter((taskId): taskId is string => typeof taskId === "string")
+        : [];
+  }
+}
+
+function orderTaskDependencies(pending: PendingMutation[]) {
+  const ordered = [...pending];
+  for (let index = 0; index < ordered.length; index += 1) {
+    const taskIds = new Set(referencedTaskIds(ordered[index]!));
+    if (taskIds.size === 0) continue;
+    const taskIndex = ordered.findIndex(
+      (candidate, candidateIndex) =>
+        candidateIndex > index &&
+        candidate.kind === "task-upsert" &&
+        taskIds.has(candidate.payload.id as string),
+    );
+    if (taskIndex < 0) continue;
+    const [task] = ordered.splice(taskIndex, 1);
+    ordered.splice(index, 0, task!);
+  }
+  return ordered;
+}
+
 async function applyMutation(
   client: SupabaseClient<Database>,
   mutation: PendingMutation,
@@ -190,10 +234,12 @@ async function syncPendingMutationsUnlocked(
   const db = getLocalDatabase();
   if (!db || !navigator.onLine) return { synced: 0 };
   const client = createClient();
-  const pending = await db.pendingMutations
-    .where("userId")
-    .equals(userId)
-    .sortBy("createdAt");
+  const pending = orderTaskDependencies(
+    await db.pendingMutations
+      .where("userId")
+      .equals(userId)
+      .sortBy("createdAt"),
+  );
   let synced = 0;
 
   for (const mutation of pending) {
