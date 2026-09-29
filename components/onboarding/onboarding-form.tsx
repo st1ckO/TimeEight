@@ -2,7 +2,7 @@
 
 import { ArrowRight, Check, Clock3, MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useTimeEight } from "@/components/app/app-provider";
 import { profileSchema } from "@/lib/domain/schemas";
 
@@ -18,14 +18,27 @@ const suggestedZones = [
   "UTC",
 ];
 
+function subscribeToBrowserTimezone() {
+  return () => undefined;
+}
+
+function browserTimezone() {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
 export function OnboardingForm() {
   const app = useTimeEight();
   const router = useRouter();
-  const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const [displayName, setDisplayName] = useState(app.profile.displayName);
-  const [timezone, setTimezone] = useState(
-    suggestedZones.includes(detected) ? detected : app.profile.timezone,
+  const detected = useSyncExternalStore(
+    subscribeToBrowserTimezone,
+    browserTimezone,
+    () => app.profile.timezone,
   );
+  const [displayName, setDisplayName] = useState(app.profile.displayName);
+  const [selectedTimezone, setSelectedTimezone] = useState<string | null>(null);
+  const timezone =
+    selectedTimezone ??
+    (suggestedZones.includes(detected) ? detected : app.profile.timezone);
   const [keepExamples, setKeepExamples] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -81,7 +94,7 @@ export function OnboardingForm() {
           </span>
           <select
             value={timezone}
-            onChange={(event) => setTimezone(event.target.value)}
+            onChange={(event) => setSelectedTimezone(event.target.value)}
           >
             {[...new Set([timezone, detected, ...suggestedZones])].map(
               (zone) => (
