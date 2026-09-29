@@ -763,12 +763,14 @@ export function AppProvider({
       archivedAt: null,
       onDailyList: true,
     };
-    setTasks((current) => [...current, task]);
     await getLocalDatabase()?.tasks.put(task);
     await persistMutation(
       "task-upsert",
       task as unknown as Record<string, unknown>,
     );
+    // Queue the parent task before publishing it to the target-seeding effect.
+    // The sync queue also repairs older target-before-task races.
+    setTasks((current) => [...current, task]);
     await ensureTaskTargets(
       [task],
       [{ taskId: task.id, localDate: todayKey(profile.timezone) }],

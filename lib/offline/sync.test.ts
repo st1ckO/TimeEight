@@ -153,6 +153,51 @@ describe("offline daily-list changes", () => {
     );
   });
 
+  it("repairs a queued target that raced ahead of its new task", async () => {
+    const userId = "11111111-1111-4111-8111-111111111111";
+    const taskId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    sortBy.mockResolvedValue([
+      {
+        ...state,
+        id: "target-mutation",
+        userId,
+        kind: "task-target-snapshot",
+        payload: {
+          taskId,
+          localDate: "2026-09-29",
+          targetSeconds: 3600,
+        },
+      },
+      {
+        ...state,
+        id: "task-mutation",
+        userId,
+        kind: "task-upsert",
+        payload: {
+          id: taskId,
+          userId,
+          name: "Test",
+          color: "#197c67",
+          goalKind: "limit",
+          targetSeconds: 3600,
+          sortOrder: 0,
+          archivedAt: null,
+          onDailyList: true,
+        },
+      },
+    ]);
+
+    expect(await syncPendingMutations(userId)).toEqual({ synced: 2 });
+    expect(from.mock.calls.map(([table]) => table)).toEqual([
+      "tasks",
+      "task_daily_targets",
+    ]);
+    expect(removeMutation.mock.calls.map(([id]) => id)).toEqual([
+      "task-mutation",
+      "target-mutation",
+    ]);
+  });
+
   it("updates a day's target without touching task defaults", async () => {
     sortBy.mockResolvedValue([
       {
