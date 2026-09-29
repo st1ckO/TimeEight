@@ -1,9 +1,10 @@
 "use client";
 
-import { BarChart3, CalendarDays, Home, Settings, X } from "lucide-react";
+import { BarChart3, CalendarDays, Home, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandWordmark } from "@/components/ui/brand-wordmark";
+import { AppNotification } from "./app-notification";
 import { useTimeEight } from "./app-provider";
 import { SyncStatus } from "./sync-status";
 import { TimerRecoveryDialog } from "./timer-recovery-dialog";
@@ -69,31 +70,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <BrandWordmark />
         </Link>
         <SyncStatus state={syncState} error={syncError} />
-        {notice && (
-          <div className="reconciliation-notice" role="status">
-            <span>{notice}</span>
-            <button
-              className="icon-button"
-              onClick={dismissNotice}
-              aria-label="Dismiss notice"
-            >
-              <X size={17} />
-            </button>
-          </div>
-        )}
         {children}
       </main>
 
-      {activeTimers.length > 0 && pathname !== "/today" && (
-        <div className="active-dock" role="status" aria-live="polite">
-          <span className="pulse-dot" aria-hidden="true" />
-          <div>
-            <strong>Tracking</strong>
-            <span>
-              {activeTimers.length}{" "}
-              {activeTimers.length === 1 ? "timer" : "timers"} active
-            </span>
-          </div>
+      {(notice || (activeTimers.length > 0 && pathname !== "/today")) && (
+        <div className="floating-status-stack">
+          {notice && (
+            <AppNotification
+              key={notice.id}
+              notice={notice}
+              onDismiss={dismissNotice}
+            />
+          )}
+          {activeTimers.length > 0 && pathname !== "/today" && (
+            <div className="active-dock" role="status" aria-live="polite">
+              <span className="pulse-dot" aria-hidden="true" />
+              <div>
+                <strong>Tracking</strong>
+                <span>
+                  {activeTimers.length}{" "}
+                  {activeTimers.length === 1 ? "timer" : "timers"} active
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
