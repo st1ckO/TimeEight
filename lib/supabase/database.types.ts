@@ -199,6 +199,10 @@ export interface Database {
         Args: { backup: Json; confirmation: string };
         Returns: undefined;
       };
+      stop_active_timer: {
+        Args: { p_timer_id: string; p_entries: Json };
+        Returns: boolean;
+      };
     };
     Enums: {
       profile_theme: "system" | "light" | "dark";

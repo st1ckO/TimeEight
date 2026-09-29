@@ -183,16 +183,10 @@ async function applyMutation(
       });
     case "timer-stop": {
       const entries = payload.entries as Record<string, unknown>[];
-      if (entries.length > 0) {
-        const inserted = await client
-          .from("time_entries")
-          .upsert(entries.map(toEntryRow));
-        if (inserted.error) return inserted;
-      }
-      return client
-        .from("active_timers")
-        .delete()
-        .eq("id", payload.timerId as string);
+      return client.rpc("stop_active_timer", {
+        p_timer_id: payload.timerId as string,
+        p_entries: entries.map(toEntryRow),
+      });
     }
     case "entry-upsert":
       return client.from("time_entries").upsert(toEntryRow(payload));
@@ -228,9 +222,11 @@ async function applyMutation(
   }
 }
 
-async function syncPendingMutationsUnlocked(
-  userId: string,
-): Promise<{ synced: number; error?: string }> {
+async function syncPendingMutationsUnlocked(userId: string): Promise<{
+  synced: number;
+  error?: string;
+  supersededEntryIds?: string[];
+}> {
   const db = getLocalDatabase();
   if (!db || !navigator.onLine) return { synced: 0 };
   const client = createClient();
@@ -241,19 +237,55 @@ async function syncPendingMutationsUnlocked(
       .sortBy("createdAt"),
   );
   let synced = 0;
+  const supersededEntryIds = new Set<string>();
 
   for (const mutation of pending) {
     let result;
     try {
       result = await applyMutation(client, mutation);
     } catch {
-      return { synced, error: "Queued change could not be applied" };
+      return {
+        synced,
+        error: "Queued change could not be applied",
+        ...(supersededEntryIds.size > 0
+          ? { supersededEntryIds: [...supersededEntryIds] }
+          : {}),
+      };
     }
-    if (result.error) return { synced, error: result.error.message };
+    if (result.error)
+      return {
+        synced,
+        error: result.error.message,
+        ...(supersededEntryIds.size > 0
+          ? { supersededEntryIds: [...supersededEntryIds] }
+          : {}),
+      };
+    if (
+      mutation.kind === "timer-stop" &&
+      "data" in result &&
+      result.data === false &&
+      Array.isArray(mutation.payload.entries)
+    ) {
+      for (const entry of mutation.payload.entries) {
+        if (
+          typeof entry === "object" &&
+          entry !== null &&
+          "id" in entry &&
+          typeof entry.id === "string"
+        ) {
+          supersededEntryIds.add(entry.id);
+        }
+      }
+    }
     await db.pendingMutations.delete(mutation.id);
     synced += 1;
   }
-  return { synced };
+  return {
+    synced,
+    ...(supersededEntryIds.size > 0
+      ? { supersededEntryIds: [...supersededEntryIds] }
+      : {}),
+  };
 }
 
 export async function syncPendingMutations(userId: string) {
