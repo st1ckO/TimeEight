@@ -5,6 +5,15 @@ test("introduces TimeEight before sign-in and previews the core app", async ({
   page,
 }) => {
   await page.goto("/login");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => getComputedStyle(document.documentElement).scrollBehavior,
+      ),
+    )
+    .toBe("smooth");
 
   await expect(
     page.getByRole("heading", {
@@ -28,10 +37,30 @@ test("introduces TimeEight before sign-in and previews the core app", async ({
   ).toBeVisible();
   await expect(page.getByRole("link", { name: /local demo/i })).toHaveCount(0);
 
+  await page
+    .getByRole("link", { name: "See inside the app", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", {
+      name: /from the timer you start to the patterns you notice/i,
+    }),
+  ).toBeInViewport();
+  await expect(page).toHaveURL(/#inside$/);
+
   await page.getByRole("link", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Continue to TimeEight" }),
   ).toBeInViewport();
+  await expect(page).toHaveURL(/#signin$/);
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => getComputedStyle(document.documentElement).scrollBehavior,
+      ),
+    )
+    .toBe("auto");
 
   const seriousViolations = (
     await new AxeBuilder({ page }).include(".landing-page").analyze()

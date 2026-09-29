@@ -2203,6 +2203,12 @@ h3 {
   }
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  html:has(.landing-page) {
+    scroll-behavior: smooth;
+  }
+}
+
 .landing-page {
   --landing-gutter: clamp(20px, 4vw, 56px);
   --landing-section-space: clamp(88px, 10vw, 144px);
