@@ -188,7 +188,7 @@ test("shows accessible overwrite warnings at every import step", async ({
   }
 });
 
-test("requires confirmation before signing out and allows returning to the demo", async ({
+test("requires confirmation before signing out", async ({
   page,
 }) => {
   await page.goto("/settings");
@@ -210,8 +210,9 @@ test("requires confirmation before signing out and allows returning to the demo"
   await trigger.click();
   await dialog.getByRole("button", { name: "Sign out", exact: true }).click();
   await expect(page).toHaveURL(/\/login$/, { timeout: 15_000 });
-  await page.getByRole("link", { name: /Explore the local demo/ }).click();
-  await expect(page).toHaveURL(/\/today$/);
+  await expect(
+    page.getByRole("link", { name: /local demo/i }),
+  ).toHaveCount(0);
 });
 
 test("confirms account deletion in a compact two-step popup", async ({

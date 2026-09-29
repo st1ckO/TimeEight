@@ -38,7 +38,7 @@ export function InsightsPage() {
     <>
       <header className="page-header">
         <div>
-          <p className="eyebrow">Patterns without scores</p>
+          <p className="eyebrow">Across days and tasks</p>
           <h1>Insights</h1>
           <p>A closer look at how your time adds up.</p>
         </div>
@@ -102,7 +102,7 @@ export function InsightsPage() {
           <p>
             {bestWeek
               ? `That is ${comparison}% of your most tracked week.`
-              : "Your first week becomes a useful reference point, not a benchmark."}
+              : "Track time this week to start your weekly comparison."}
           </p>
           <div className="comparison-line">
             <TrendingUp size={18} />

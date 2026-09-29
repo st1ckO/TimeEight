@@ -197,12 +197,12 @@ export function LandingFeaturePreviews() {
           </span>
           <div>
             <p className="eyebrow">Insights</p>
-            <h3>Patterns without scores</h3>
+            <h3>See your patterns</h3>
           </div>
         </div>
         <p>
-          See how your tracked time adds up across days and tasks—descriptive,
-          never judgmental.
+          Compare your tracked time across days and tasks, then review the
+          records behind your routine.
         </p>
         <div className="landing-mini-insights" aria-hidden="true">
           <div className="landing-mini-bars">

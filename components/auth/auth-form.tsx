@@ -117,11 +117,10 @@ export function AuthForm({
           <p className="landing-kicker">
             <span /> Calm, intentional time tracking
           </p>
-          <h1>Understand your time without judging your day.</h1>
+          <h1>Make time for what matters. See where the rest goes.</h1>
           <p className="landing-lede">
-            Build time for what matters. Set gentle limits for what you want
-            less of. TimeEight keeps the clock and leaves the scorekeeping
-            behind.
+            Run timers for what you want more of, set daily limits for what you
+            want less of, and keep a clear history of how your time adds up.
           </p>
           <div className="landing-actions">
             <a className="landing-primary-cta" href="#signin">
@@ -271,17 +270,12 @@ export function AuthForm({
                 {message}
               </p>
             )}
-            {!configured && (
-              <a className="demo-link" href="/today">
-                Explore the local demo <ArrowRight size={17} />
-              </a>
-            )}
           </div>
         </div>
       </section>
       <footer className="landing-footer landing-shell">
         <BrandWordmark />
-        <span>Time tracking without the judgment.</span>
+        <span>Build time. Limit time. See the full picture.</span>
       </footer>
     </main>
   );

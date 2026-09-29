@@ -14,7 +14,7 @@ describe("AuthForm", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /understand your time without judging your day/i,
+        name: /make time for what matters.*see where the rest goes/i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -29,7 +29,7 @@ describe("AuthForm", () => {
       screen.getByRole("heading", { name: /your time in context/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /patterns without scores/i }),
+      screen.getByRole("heading", { name: /see your patterns/i }),
     ).toBeInTheDocument();
   });
 
@@ -51,7 +51,7 @@ describe("AuthForm", () => {
     );
     expect(screen.getByRole("status")).toHaveTextContent(/\.env\.local/i);
     expect(
-      screen.getByRole("link", { name: /explore the local demo/i }),
-    ).toHaveAttribute("href", "/today");
+      screen.queryByRole("link", { name: /local demo/i }),
+    ).not.toBeInTheDocument();
   });
 });

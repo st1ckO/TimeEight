@@ -2726,6 +2726,7 @@ h3 {
   display: grid;
   grid-template-rows: auto auto 1fr;
   gap: 13px;
+  min-width: 0;
 }
 .landing-mini-calendar-head {
   display: flex;
@@ -2739,8 +2740,9 @@ h3 {
 .landing-mini-weekdays,
 .landing-mini-days {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 5px;
+  min-width: 0;
 }
 .landing-mini-weekdays span {
   color: var(--muted);
@@ -2749,6 +2751,7 @@ h3 {
 }
 .landing-mini-days span {
   aspect-ratio: 1;
+  min-width: 0;
   border-radius: 50%;
   color: var(--muted);
   display: grid;
@@ -2941,17 +2944,6 @@ h3 {
   color: var(--muted);
   font-size: 0.84rem;
   line-height: 1.55;
-}
-.demo-link {
-  min-height: 46px;
-  margin-top: 16px;
-  color: var(--teal);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-weight: 750;
-  text-decoration: none;
 }
 .landing-footer {
   min-height: 100px;

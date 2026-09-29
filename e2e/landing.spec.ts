@@ -9,7 +9,7 @@ test("introduces TimeEight before sign-in and previews the core app", async ({
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: /understand your time without judging your day/i,
+      name: /make time for what matters.*see where the rest goes/i,
     }),
   ).toBeVisible();
   await expect(
@@ -24,8 +24,9 @@ test("introduces TimeEight before sign-in and previews the core app", async ({
     page.getByRole("heading", { name: /your time in context/i }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: /patterns without scores/i }),
+    page.getByRole("heading", { name: /see your patterns/i }),
   ).toBeVisible();
+  await expect(page.getByRole("link", { name: /local demo/i })).toHaveCount(0);
 
   await page.getByRole("link", { name: "Sign in", exact: true }).click();
   await expect(
@@ -45,4 +46,25 @@ test("introduces TimeEight before sign-in and previews the core app", async ({
     document: document.documentElement.scrollWidth,
   }));
   expect(dimensions.document).toBe(dimensions.viewport);
+
+  const calendarBounds = await page.evaluate(() => {
+    const calendar = document.querySelector(".landing-mini-calendar");
+    const days = [...document.querySelectorAll(".landing-mini-days span")];
+    if (!calendar || days.length === 0) return null;
+    const container = calendar.getBoundingClientRect();
+    const dayBounds = days.map((day) => day.getBoundingClientRect());
+    return {
+      containerLeft: container.left,
+      containerRight: container.right,
+      firstDayLeft: Math.min(...dayBounds.map((day) => day.left)),
+      lastDayRight: Math.max(...dayBounds.map((day) => day.right)),
+    };
+  });
+  expect(calendarBounds).not.toBeNull();
+  expect(calendarBounds!.firstDayLeft).toBeGreaterThanOrEqual(
+    calendarBounds!.containerLeft,
+  );
+  expect(calendarBounds!.lastDayRight).toBeLessThanOrEqual(
+    calendarBounds!.containerRight,
+  );
 });
