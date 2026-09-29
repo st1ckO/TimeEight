@@ -107,6 +107,15 @@ interface EntryInput {
   durationSeconds: number;
 }
 
+export type SyncState = "local" | "synced" | "pending" | "offline" | "error";
+export type NoticeTone = "info" | "success" | "warning" | "error";
+
+export interface AppNotice {
+  id: string;
+  message: string;
+  tone: NoticeTone;
+}
+
 interface AppContextValue {
   userId: string;
   profile: LocalProfile;
@@ -118,8 +127,9 @@ interface AppContextValue {
   entries: TimeEntry[];
   now: number;
   hydrated: boolean;
-  syncState: "local" | "synced" | "pending" | "offline" | "error";
-  notice: string | null;
+  syncState: SyncState;
+  syncError: string | null;
+  notice: AppNotice | null;
   today: string;
   totals: Map<string, number>;
   goalTotals: Map<string, number>;
@@ -272,7 +282,8 @@ export function AppProvider({
   const [syncState, setSyncState] = useState<AppContextValue["syncState"]>(
     userId === "local-demo" ? "local" : "pending",
   );
-  const [notice, setNotice] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<AppNotice | null>(null);
   const activeRef = useRef(activeTimers);
   const restoringRef = useRef(false);
 
@@ -285,20 +296,35 @@ export function AppProvider({
       profile.theme === "system" ? "" : profile.theme;
   }, [profile.theme]);
 
+  const updateSyncStatus = useCallback(
+    (state: SyncState, error: string | null = null) => {
+      setSyncState(state);
+      setSyncError(state === "error" ? error : null);
+    },
+    [],
+  );
+
+  const showNotice = useCallback(
+    (message: string, tone: NoticeTone = "info") =>
+      setNotice({ id: newId(), message, tone }),
+    [],
+  );
+  const dismissNotice = useCallback(() => setNotice(null), []);
+
   const persistMutation = useCallback(
     async (kind: PendingMutation["kind"], payload: Record<string, unknown>) => {
       await queue(userId, kind, payload);
       if (userId === "local-demo") return null;
       if (!navigator.onLine) {
-        setSyncState("offline");
+        updateSyncStatus("offline");
         return null;
       }
-      setSyncState("pending");
+      updateSyncStatus("pending");
       const result = await syncPendingMutations(userId);
-      setSyncState(result.error ? "error" : "synced");
+      updateSyncStatus(result.error ? "error" : "synced", result.error ?? null);
       return result;
     },
-    [userId],
+    [updateSyncStatus, userId],
   );
 
   useEffect(() => {
@@ -339,7 +365,7 @@ export function AppProvider({
         try {
           remoteBefore = await loadRemoteSnapshot(userId);
         } catch {
-          setSyncState("error");
+          updateSyncStatus("error", "Account data could not be loaded.");
         }
       }
 
@@ -375,8 +401,9 @@ export function AppProvider({
         );
         recoveredEntries.push(...recoveryPlan.entries);
         if (remoteTimer && remoteTimer.id !== timer.id) {
-          setNotice(
+          showNotice(
             "Time from an offline timer was recovered. The timer already active on another device remains active.",
+            "warning",
           );
         }
       }
@@ -389,12 +416,15 @@ export function AppProvider({
         null;
       if (onlineAccount) {
         const result = await syncPendingMutations(userId);
-        setSyncState(result.error ? "error" : "synced");
+        updateSyncStatus(
+          result.error ? "error" : "synced",
+          result.error ?? null,
+        );
         if (!result.error) {
           try {
             remoteAfter = await loadRemoteSnapshot(userId);
           } catch {
-            setSyncState("error");
+            updateSyncStatus("error", "Account data could not be refreshed.");
           }
         }
       }
@@ -516,7 +546,13 @@ export function AppProvider({
     return () => {
       cancelled = true;
     };
-  }, [initialAccountStart, initialProfile, userId]);
+  }, [
+    initialAccountStart,
+    initialProfile,
+    showNotice,
+    updateSyncStatus,
+    userId,
+  ]);
 
   useEffect(() => {
     const ticker = window.setInterval(() => setNow(Date.now()), 1000);
@@ -545,14 +581,15 @@ export function AppProvider({
         );
         return true;
       } catch {
-        setSyncState("error");
-        setNotice(
+        updateSyncStatus("error", "History could not be refreshed.");
+        showNotice(
           "The timer was stopped on another device, but history could not be refreshed. Reload when you are online.",
+          "error",
         );
         return false;
       }
     },
-    [userId],
+    [showNotice, updateSyncStatus, userId],
   );
 
   const pauseTimer = useCallback(
@@ -655,14 +692,22 @@ export function AppProvider({
         entries: newEntries as unknown as Record<string, unknown>[],
       });
       if (await reconcileSupersededEntries(result?.supersededEntryIds)) {
-        setNotice(
+        showNotice(
           result?.error
             ? "This timer was already stopped on another device and history was refreshed. Other changes still need to sync."
             : "This timer was already stopped on another device. History was refreshed without adding duplicate time.",
+          result?.error ? "warning" : "info",
         );
       }
     },
-    [entries, persistMutation, reconcileSupersededEntries, tasks, userId],
+    [
+      entries,
+      persistMutation,
+      reconcileSupersededEntries,
+      showNotice,
+      tasks,
+      userId,
+    ],
   );
 
   const pauseAll = useCallback(async () => {
@@ -682,14 +727,14 @@ export function AppProvider({
           current.filter((item) => item.id !== timerId),
         );
         setEntries(snapshot.entries);
-        setNotice(
+        showNotice(
           "This timer was already resolved on another device. Your history has been refreshed.",
         );
         return null;
       }
       return timer;
     },
-    [userId],
+    [showNotice, userId],
   );
 
   const continueRecoveryTimer = useCallback(
@@ -705,7 +750,6 @@ export function AppProvider({
       setRecoveryTimers((current) =>
         current.filter((item) => item.id !== timer.id),
       );
-      setNotice("The timer is now continuing on this device.");
     },
     [refreshRecoveryTimer],
   );
@@ -731,13 +775,13 @@ export function AppProvider({
       setRecoveryTimers((current) =>
         current.filter((item) => item.id !== timer.id),
       );
-      setSyncState("pending");
+      updateSyncStatus("pending");
       const result = await syncPendingMutations(userId);
-      setSyncState(result.error ? "error" : "synced");
+      updateSyncStatus(result.error ? "error" : "synced", result.error ?? null);
       const superseded = await reconcileSupersededEntries(
         result.supersededEntryIds,
       );
-      setNotice(
+      showNotice(
         superseded
           ? result.error
             ? "This timer was already stopped on another device and history was refreshed. Other changes still need to sync."
@@ -745,9 +789,16 @@ export function AppProvider({
           : result.error
             ? "The checkpoint is saved on this device and will sync when the connection recovers."
             : "The timer was stopped at its last confirmed checkpoint.",
+        result.error ? "warning" : superseded ? "info" : "success",
       );
     },
-    [reconcileSupersededEntries, refreshRecoveryTimer, userId],
+    [
+      reconcileSupersededEntries,
+      refreshRecoveryTimer,
+      showNotice,
+      updateSyncStatus,
+      userId,
+    ],
   );
 
   useEffect(() => {
@@ -768,24 +819,29 @@ export function AppProvider({
       if (restoringRef.current) return;
       if (userId !== "local-demo")
         void syncPendingMutations(userId).then(async (result) => {
-          setSyncState(result.error ? "error" : "synced");
+          updateSyncStatus(
+            result.error ? "error" : "synced",
+            result.error ?? null,
+          );
           if (await reconcileSupersededEntries(result.supersededEntryIds)) {
-            setNotice(
+            showNotice(
               result.error
                 ? "A timer was already stopped on another device and history was refreshed. Other changes still need to sync."
                 : "A timer was already stopped on another device. History was refreshed without adding duplicate time.",
+              result.error ? "warning" : "info",
             );
           }
         });
     };
-    const onOffline = () => userId !== "local-demo" && setSyncState("offline");
+    const onOffline = () =>
+      userId !== "local-demo" && updateSyncStatus("offline");
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
     return () => {
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
     };
-  }, [reconcileSupersededEntries, userId]);
+  }, [reconcileSupersededEntries, showNotice, updateSyncStatus, userId]);
 
   useEffect(() => {
     const db = getLocalDatabase();
@@ -877,11 +933,12 @@ export function AppProvider({
         localDate: targetDate,
       })),
     ).catch(() =>
-      setNotice(
+      showNotice(
         "Couldn't save today's allotments. Please reload and try again.",
+        "error",
       ),
     );
-  }, [ensureTaskTargets, hydrated, targetDate, tasks]);
+  }, [ensureTaskTargets, hydrated, showNotice, targetDate, tasks]);
 
   async function updateTask(id: string, input: AddTaskInput) {
     const existing = tasks.find((task) => task.id === id);
@@ -1272,8 +1329,8 @@ export function AppProvider({
         setTasks(snapshot.tasks);
         setTaskDailyTargets(snapshot.taskDailyTargets);
         setEntries(snapshot.entries);
-        setNotice(null);
-        setSyncState(userId === "local-demo" ? "local" : "synced");
+        dismissNotice();
+        updateSyncStatus(userId === "local-demo" ? "local" : "synced");
       });
     } finally {
       restoringRef.current = false;
@@ -1323,6 +1380,7 @@ export function AppProvider({
     now,
     hydrated,
     syncState,
+    syncError,
     notice,
     today,
     totals,
@@ -1349,7 +1407,7 @@ export function AppProvider({
     updateProfile,
     clearUserData,
     restoreBackup,
-    dismissNotice: () => setNotice(null),
+    dismissNotice,
   };
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
