@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandWordmark } from "@/components/ui/brand-wordmark";
 import { useTimeEight } from "./app-provider";
+import { SyncStatus } from "./sync-status";
 import { TimerRecoveryDialog } from "./timer-recovery-dialog";
 import { WebMcpTools } from "./webmcp-tools";
 
@@ -23,6 +24,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     tasks,
     profile,
     syncState,
+    syncError,
     notice,
     dismissNotice,
     continueRecoveryTimer,
@@ -66,10 +68,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         >
           <BrandWordmark />
         </Link>
-        <div className="app-status">
-          <span className={`sync-dot ${syncState}`} />
-          {syncState === "local" ? "Local demo" : syncState}
-        </div>
+        <SyncStatus state={syncState} error={syncError} />
         {notice && (
           <div className="reconciliation-notice" role="status">
             <span>{notice}</span>

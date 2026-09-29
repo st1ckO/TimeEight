@@ -845,6 +845,33 @@ h3 {
   font-size: 0.75rem;
   font-weight: 750;
 }
+.app-status.has-detail {
+  align-items: flex-start;
+  max-width: min(360px, 100%);
+  padding-block: 8px;
+  border-color: color-mix(in srgb, var(--amber) 42%, var(--line));
+  background: var(--amber-soft);
+}
+.app-status.has-detail .sync-dot {
+  margin-top: 4px;
+  flex: 0 0 auto;
+}
+.app-status-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.sync-error-detail {
+  max-width: 300px;
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .reconciliation-notice {
   margin-top: 14px;
   padding: 12px 12px 12px 15px;
