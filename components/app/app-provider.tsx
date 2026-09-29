@@ -70,6 +70,12 @@ import {
   loadRemoteSnapshot,
   syncPendingMutations,
 } from "@/lib/offline/sync";
+import {
+  commitTimerRecovery,
+  mergeEntriesById,
+  planTimerRecovery,
+  remoteTimersNeedingRecovery,
+} from "@/lib/offline/timer-recovery";
 
 import {
   restoreSnapshotSchema,
@@ -107,6 +113,7 @@ interface AppContextValue {
   tasks: Task[];
   taskDailyTargets: TaskDailyTarget[];
   activeTimers: ActiveTimer[];
+  recoveryTimers: ActiveTimer[];
   entries: TimeEntry[];
   now: number;
   hydrated: boolean;
@@ -140,6 +147,8 @@ interface AppContextValue {
     preserveElapsed?: boolean,
   ): Promise<void>;
   pauseAll(): Promise<void>;
+  continueRecoveryTimer(timerId: string): Promise<void>;
+  stopRecoveryTimerAtCheckpoint(timerId: string): Promise<void>;
   addEntry(input: EntryInput): Promise<void>;
   updateEntry(id: string, input: EntryInput): Promise<void>;
   revertEntryCorrection(id: string): Promise<void>;
@@ -254,6 +263,7 @@ export function AppProvider({
   );
   const targetsRef = useRef<TaskDailyTarget[]>([]);
   const [activeTimers, setActiveTimers] = useState<ActiveTimer[]>([]);
+  const [recoveryTimers, setRecoveryTimers] = useState<ActiveTimer[]>([]);
   useTimerLeaveWarning(activeTimers.length > 0);
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [now, setNow] = useState(0);
@@ -330,68 +340,43 @@ export function AppProvider({
 
       if (cancelled) return;
 
-      const recoveredEntries: TimeEntry[] = storedTimers.flatMap((timer) => {
-        if (timer.checkpointSeconds <= 0) return [];
-        const recoveredEnd = new Date(
-          Date.parse(timer.startedAt) + timer.checkpointSeconds * 1000,
-        ).toISOString();
-        return splitDurationAcrossLocalDates(
-          timer.startedAt,
-          recoveredEnd,
-          timer.timezone,
-        ).map((slice) => ({
-          id: newId(),
-          userId,
-          taskId: timer.taskId,
-          localDate: slice.localDate,
-          durationSeconds: slice.durationSeconds,
-          source: "recovered" as const,
-          startedAt: slice.startedAt,
-          endedAt: slice.endedAt,
-          manuallyAdjusted: false,
-          correctionOriginalTaskId: null,
-          correctionOriginalLocalDate: null,
-          correctionOriginalDurationSeconds: null,
-          mutationId: newId(),
-        }));
-      });
-
+      const recoveredEntries: TimeEntry[] = [];
+      const localTimerIds = new Set(storedTimers.map((timer) => timer.id));
       for (const timer of storedTimers) {
-        const timerEntries = recoveredEntries.filter(
-          (entry) => entry.taskId === timer.taskId,
-        );
         const remoteTimer = remoteBefore?.activeTimers.find(
           (item) => item.taskId === timer.taskId,
         );
-        await db.pendingMutations
-          .filter(
-            (mutation) =>
-              mutation.kind === "timer-start" &&
-              mutation.payload.id === timer.id,
-          )
-          .delete();
+        const pendingStartMutationIds = (
+          await db.pendingMutations
+            .filter(
+              (mutation) =>
+                mutation.kind === "timer-start" &&
+                mutation.payload.id === timer.id,
+            )
+            .toArray()
+        ).map((mutation) => mutation.id);
+        const recoveryPlan = planTimerRecovery(
+          timer,
+          userId,
+          remoteTimer && remoteTimer.id !== timer.id
+            ? "preserve-other-timer"
+            : "stop-timer",
+        );
+        await commitTimerRecovery(
+          db,
+          timer,
+          recoveryPlan,
+          pendingStartMutationIds,
+        );
+        recoveredEntries.push(...recoveryPlan.entries);
         if (remoteTimer && remoteTimer.id !== timer.id) {
-          for (const entry of timerEntries)
-            await queue(
-              userId,
-              "entry-upsert",
-              entry as unknown as Record<string, unknown>,
-            );
           setNotice(
             "Time from an offline timer was recovered. The timer already active on another device remains active.",
           );
-        } else {
-          await queue(userId, "timer-stop", {
-            timerId: timer.id,
-            entries: timerEntries as unknown as Record<string, unknown>[],
-          });
         }
       }
       if (storedTimers.length > 0) {
-        await db.activeTimers.bulkDelete(storedTimers.map((timer) => timer.id));
-        if (recoveredEntries.length > 0)
-          await db.timeEntries.bulkPut(recoveredEntries);
-        storedEntries = [...storedEntries, ...recoveredEntries];
+        storedEntries = mergeEntriesById(storedEntries, recoveredEntries);
       }
 
       // Never replace unsynced local edits with a stale server snapshot.
@@ -416,6 +401,14 @@ export function AppProvider({
         storedTargets = remoteAfter.taskDailyTargets;
         storedEntries = remoteAfter.entries;
       }
+      const latestRemote = remoteAfter ?? remoteBefore;
+      const timersNeedingChoice = remoteTimersNeedingRecovery(
+        latestRemote?.activeTimers ?? [],
+        localTimerIds,
+      );
+      // Local timers are finalized from their checkpoint above. Remote-only
+      // timers remain quarantined until the user makes an explicit choice.
+      const timersReadyOnThisDevice: ActiveTimer[] = [];
       if (cancelled) return;
       if (
         storedGoals.length === 0 ||
@@ -496,8 +489,8 @@ export function AppProvider({
           if (storedTasks.length > 0) await db.tasks.bulkPut(storedTasks);
           if (storedTargets.length > 0)
             await db.taskDailyTargets.bulkPut(storedTargets);
-          if (remoteAfter?.activeTimers.length)
-            await db.activeTimers.bulkPut(remoteAfter.activeTimers);
+          if (timersReadyOnThisDevice.length)
+            await db.activeTimers.bulkPut(timersReadyOnThisDevice);
           if (storedEntries.length > 0)
             await db.timeEntries.bulkPut(storedEntries);
         },
@@ -508,7 +501,9 @@ export function AppProvider({
       setTasks(storedTasks.sort((a, b) => a.sortOrder - b.sortOrder));
       targetsRef.current = storedTargets;
       setTaskDailyTargets(storedTargets);
-      setActiveTimers(remoteAfter?.activeTimers ?? []);
+      activeRef.current = timersReadyOnThisDevice;
+      setActiveTimers(timersReadyOnThisDevice);
+      setRecoveryTimers(timersNeedingChoice);
       setEntries(storedEntries);
       setHydrated(true);
     }
@@ -627,6 +622,80 @@ export function AppProvider({
     for (const timer of [...activeRef.current]) await pauseTimer(timer.taskId);
   }, [pauseTimer]);
 
+  const refreshRecoveryTimer = useCallback(
+    async (timerId: string) => {
+      if (!isSupabaseConfigured() || !navigator.onLine)
+        throw new Error(
+          "Reconnect to the internet before resolving this timer.",
+        );
+      const snapshot = await loadRemoteSnapshot(userId);
+      const timer = snapshot.activeTimers.find((item) => item.id === timerId);
+      if (!timer) {
+        setRecoveryTimers((current) =>
+          current.filter((item) => item.id !== timerId),
+        );
+        setEntries(snapshot.entries);
+        setNotice(
+          "This timer was already resolved on another device. Your history has been refreshed.",
+        );
+        return null;
+      }
+      return timer;
+    },
+    [userId],
+  );
+
+  const continueRecoveryTimer = useCallback(
+    async (timerId: string) => {
+      const timer = await refreshRecoveryTimer(timerId);
+      if (!timer) return;
+      await getLocalDatabase()?.activeTimers.put(timer);
+      activeRef.current = [
+        ...activeRef.current.filter((item) => item.id !== timer.id),
+        timer,
+      ];
+      setActiveTimers(activeRef.current);
+      setRecoveryTimers((current) =>
+        current.filter((item) => item.id !== timer.id),
+      );
+      setNotice("The timer is now continuing on this device.");
+    },
+    [refreshRecoveryTimer],
+  );
+
+  const stopRecoveryTimerAtCheckpoint = useCallback(
+    async (timerId: string) => {
+      const timer = await refreshRecoveryTimer(timerId);
+      if (!timer) return;
+      const db = getLocalDatabase();
+      if (!db) throw new Error("Local storage is unavailable.");
+      const plan = planTimerRecovery(timer, userId, "stop-timer");
+      const pendingStartMutationIds = (
+        await db.pendingMutations
+          .filter(
+            (mutation) =>
+              mutation.kind === "timer-start" &&
+              mutation.payload.id === timer.id,
+          )
+          .toArray()
+      ).map((mutation) => mutation.id);
+      await commitTimerRecovery(db, timer, plan, pendingStartMutationIds);
+      setEntries((current) => mergeEntriesById(current, plan.entries));
+      setRecoveryTimers((current) =>
+        current.filter((item) => item.id !== timer.id),
+      );
+      setSyncState("pending");
+      const result = await syncPendingMutations(userId);
+      setSyncState(result.error ? "error" : "synced");
+      setNotice(
+        result.error
+          ? "The checkpoint is saved on this device and will sync when the connection recovers."
+          : "The timer was stopped at its last confirmed checkpoint.",
+      );
+    },
+    [refreshRecoveryTimer, userId],
+  );
+
   useEffect(() => {
     if (!hydrated || restoringRef.current) return;
     for (const timer of activeRef.current) {
@@ -641,19 +710,6 @@ export function AppProvider({
   }, [hydrated, tasks, entries, taskDailyTargets, now, pauseTimer]);
 
   useEffect(() => {
-    const onPageHide = () => {
-      if (restoringRef.current) return;
-      const timerIds = activeRef.current.map((timer) => timer.id);
-      if (timerIds.length > 0 && userId !== "local-demo") {
-        void fetch("/api/timers/pause", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ timerIds }),
-          keepalive: true,
-        });
-      }
-      void pauseAll();
-    };
     const onOnline = () => {
       if (restoringRef.current) return;
       if (userId !== "local-demo")
@@ -662,15 +718,13 @@ export function AppProvider({
         );
     };
     const onOffline = () => userId !== "local-demo" && setSyncState("offline");
-    window.addEventListener("pagehide", onPageHide);
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
     return () => {
-      window.removeEventListener("pagehide", onPageHide);
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
     };
-  }, [pauseAll, userId]);
+  }, [userId]);
 
   useEffect(() => {
     const db = getLocalDatabase();
@@ -1201,6 +1255,7 @@ export function AppProvider({
     tasks,
     taskDailyTargets,
     activeTimers,
+    recoveryTimers,
     entries,
     now,
     hydrated,
@@ -1222,6 +1277,8 @@ export function AppProvider({
     startTimer,
     pauseTimer,
     pauseAll,
+    continueRecoveryTimer,
+    stopRecoveryTimerAtCheckpoint,
     addEntry,
     updateEntry,
     revertEntryCorrection,

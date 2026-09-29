@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandWordmark } from "@/components/ui/brand-wordmark";
 import { useTimeEight } from "./app-provider";
+import { TimerRecoveryDialog } from "./timer-recovery-dialog";
 import { WebMcpTools } from "./webmcp-tools";
 
 const destinations = [
@@ -16,8 +17,18 @@ const destinations = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { activeTimers, profile, syncState, notice, dismissNotice } =
-    useTimeEight();
+  const {
+    activeTimers,
+    recoveryTimers,
+    tasks,
+    profile,
+    syncState,
+    notice,
+    dismissNotice,
+    continueRecoveryTimer,
+    stopRecoveryTimerAtCheckpoint,
+  } = useTimeEight();
+  const recoveryTimer = recoveryTimers[0];
   const initials =
     profile.displayName
       .split(/\s+/)
@@ -106,6 +117,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         {initials}
       </Link>
+      {recoveryTimer && (
+        <TimerRecoveryDialog
+          key={recoveryTimer.id}
+          timer={recoveryTimer}
+          taskName={
+            tasks.find((task) => task.id === recoveryTimer.taskId)?.name ??
+            "this task"
+          }
+          onContinue={() => continueRecoveryTimer(recoveryTimer.id)}
+          onStopAtCheckpoint={() =>
+            stopRecoveryTimerAtCheckpoint(recoveryTimer.id)
+          }
+        />
+      )}
     </div>
   );
 }
