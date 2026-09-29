@@ -288,11 +288,15 @@ export function AppProvider({
   const persistMutation = useCallback(
     async (kind: PendingMutation["kind"], payload: Record<string, unknown>) => {
       await queue(userId, kind, payload);
-      if (userId === "local-demo") return;
-      if (!navigator.onLine) return setSyncState("offline");
+      if (userId === "local-demo") return null;
+      if (!navigator.onLine) {
+        setSyncState("offline");
+        return null;
+      }
       setSyncState("pending");
       const result = await syncPendingMutations(userId);
       setSyncState(result.error ? "error" : "synced");
+      return result;
     },
     [userId],
   );
@@ -519,6 +523,38 @@ export function AppProvider({
     return () => window.clearInterval(ticker);
   }, []);
 
+  const reconcileSupersededEntries = useCallback(
+    async (entryIds: string[] | undefined) => {
+      if (!entryIds?.length) return false;
+      try {
+        const snapshot = await loadRemoteSnapshot(userId);
+        const supersededIds = new Set(entryIds);
+        const db = getLocalDatabase();
+        if (db) {
+          await db.transaction("rw", db.timeEntries, async () => {
+            await db.timeEntries.bulkDelete(entryIds);
+            if (snapshot.entries.length > 0)
+              await db.timeEntries.bulkPut(snapshot.entries);
+          });
+        }
+        setEntries((current) =>
+          mergeEntriesById(
+            current.filter((entry) => !supersededIds.has(entry.id)),
+            snapshot.entries,
+          ),
+        );
+        return true;
+      } catch {
+        setSyncState("error");
+        setNotice(
+          "The timer was stopped on another device, but history could not be refreshed. Reload when you are online.",
+        );
+        return false;
+      }
+    },
+    [userId],
+  );
+
   const pauseTimer = useCallback(
     async (taskId: string, recovered = false, preserveElapsed = false) => {
       if (restoringRef.current) return;
@@ -614,12 +650,19 @@ export function AppProvider({
             await db.timeEntries.bulkPut(newEntries);
           },
         );
-      await persistMutation("timer-stop", {
+      const result = await persistMutation("timer-stop", {
         timerId: timer.id,
         entries: newEntries as unknown as Record<string, unknown>[],
       });
+      if (await reconcileSupersededEntries(result?.supersededEntryIds)) {
+        setNotice(
+          result?.error
+            ? "This timer was already stopped on another device and history was refreshed. Other changes still need to sync."
+            : "This timer was already stopped on another device. History was refreshed without adding duplicate time.",
+        );
+      }
     },
-    [entries, persistMutation, tasks, userId],
+    [entries, persistMutation, reconcileSupersededEntries, tasks, userId],
   );
 
   const pauseAll = useCallback(async () => {
@@ -691,13 +734,20 @@ export function AppProvider({
       setSyncState("pending");
       const result = await syncPendingMutations(userId);
       setSyncState(result.error ? "error" : "synced");
+      const superseded = await reconcileSupersededEntries(
+        result.supersededEntryIds,
+      );
       setNotice(
-        result.error
-          ? "The checkpoint is saved on this device and will sync when the connection recovers."
-          : "The timer was stopped at its last confirmed checkpoint.",
+        superseded
+          ? result.error
+            ? "This timer was already stopped on another device and history was refreshed. Other changes still need to sync."
+            : "This timer was already stopped on another device. History was refreshed without adding duplicate time."
+          : result.error
+            ? "The checkpoint is saved on this device and will sync when the connection recovers."
+            : "The timer was stopped at its last confirmed checkpoint.",
       );
     },
-    [refreshRecoveryTimer, userId],
+    [reconcileSupersededEntries, refreshRecoveryTimer, userId],
   );
 
   useEffect(() => {
@@ -717,9 +767,16 @@ export function AppProvider({
     const onOnline = () => {
       if (restoringRef.current) return;
       if (userId !== "local-demo")
-        void syncPendingMutations(userId).then((result) =>
-          setSyncState(result.error ? "error" : "synced"),
-        );
+        void syncPendingMutations(userId).then(async (result) => {
+          setSyncState(result.error ? "error" : "synced");
+          if (await reconcileSupersededEntries(result.supersededEntryIds)) {
+            setNotice(
+              result.error
+                ? "A timer was already stopped on another device and history was refreshed. Other changes still need to sync."
+                : "A timer was already stopped on another device. History was refreshed without adding duplicate time.",
+            );
+          }
+        });
     };
     const onOffline = () => userId !== "local-demo" && setSyncState("offline");
     window.addEventListener("online", onOnline);
@@ -728,7 +785,7 @@ export function AppProvider({
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
     };
-  }, [userId]);
+  }, [reconcileSupersededEntries, userId]);
 
   useEffect(() => {
     const db = getLocalDatabase();

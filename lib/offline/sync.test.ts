@@ -252,6 +252,7 @@ describe("offline daily-list changes", () => {
   });
 
   it("consumes a second-device stop after the server reports it already won", async () => {
+    const supersededEntryId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
     rpc.mockResolvedValue({ data: false, error: null });
     sortBy.mockResolvedValue([
       {
@@ -259,13 +260,49 @@ describe("offline daily-list changes", () => {
         kind: "timer-stop",
         payload: {
           timerId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
-          entries: [],
+          entries: [{ id: supersededEntryId }],
         },
       },
     ]);
 
-    expect(await syncPendingMutations("user-1")).toEqual({ synced: 1 });
+    expect(await syncPendingMutations("user-1")).toEqual({
+      synced: 1,
+      supersededEntryIds: [supersededEntryId],
+    });
     expect(removeMutation).toHaveBeenCalledWith("mutation-1");
+  });
+
+  it("reports a superseded stop even when a later queued change fails", async () => {
+    const supersededEntryId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+    rpc.mockResolvedValue({ data: false, error: null });
+    sortBy.mockResolvedValue([
+      {
+        ...state,
+        kind: "timer-stop",
+        payload: {
+          timerId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          entries: [{ id: supersededEntryId }],
+        },
+      },
+      {
+        ...state,
+        id: "invalid-target",
+        kind: "task-target-upsert",
+        payload: {
+          taskId: state.payload.id,
+          localDate: "2026-02-30",
+          targetSeconds: 0,
+        },
+      },
+    ]);
+
+    expect(await syncPendingMutations("user-1")).toEqual({
+      synced: 1,
+      error: "Queued change could not be applied",
+      supersededEntryIds: [supersededEntryId],
+    });
+    expect(removeMutation).toHaveBeenCalledWith("mutation-1");
+    expect(removeMutation).not.toHaveBeenCalledWith("invalid-target");
   });
 
   it("updates a day's target without touching task defaults", async () => {
