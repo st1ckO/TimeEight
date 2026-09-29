@@ -75,6 +75,7 @@ import {
   mergeEntriesById,
   planTimerRecovery,
   remoteTimersNeedingRecovery,
+  timerEntryIdentity,
 } from "@/lib/offline/timer-recovery";
 
 import {
@@ -578,21 +579,24 @@ export function AppProvider({
             ]
           : [];
       });
-      const newEntries: TimeEntry[] = slices.map((slice) => ({
-        id: newId(),
-        userId,
-        taskId,
-        localDate: slice.localDate,
-        durationSeconds: slice.durationSeconds,
-        source: recovered ? "recovered" : "timer",
-        startedAt: slice.startedAt,
-        endedAt: slice.endedAt,
-        manuallyAdjusted: false,
-        correctionOriginalTaskId: null,
-        correctionOriginalLocalDate: null,
-        correctionOriginalDurationSeconds: null,
-        mutationId: newId(),
-      }));
+      const newEntries: TimeEntry[] = slices.map((slice) => {
+        const identity = timerEntryIdentity(timer, slice.localDate);
+        return {
+          id: identity.id,
+          userId,
+          taskId,
+          localDate: slice.localDate,
+          durationSeconds: slice.durationSeconds,
+          source: recovered ? "recovered" : "timer",
+          startedAt: slice.startedAt,
+          endedAt: slice.endedAt,
+          manuallyAdjusted: false,
+          correctionOriginalTaskId: null,
+          correctionOriginalLocalDate: null,
+          correctionOriginalDurationSeconds: null,
+          mutationId: identity.mutationId,
+        };
+      });
       activeRef.current = activeRef.current.filter(
         (item) => item.id !== timer.id,
       );

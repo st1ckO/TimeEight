@@ -183,16 +183,10 @@ async function applyMutation(
       });
     case "timer-stop": {
       const entries = payload.entries as Record<string, unknown>[];
-      if (entries.length > 0) {
-        const inserted = await client
-          .from("time_entries")
-          .upsert(entries.map(toEntryRow));
-        if (inserted.error) return inserted;
-      }
-      return client
-        .from("active_timers")
-        .delete()
-        .eq("id", payload.timerId as string);
+      return client.rpc("stop_active_timer", {
+        p_timer_id: payload.timerId as string,
+        p_entries: entries.map(toEntryRow),
+      });
     }
     case "entry-upsert":
       return client.from("time_entries").upsert(toEntryRow(payload));
