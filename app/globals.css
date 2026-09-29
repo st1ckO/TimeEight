@@ -226,10 +226,17 @@ a:focus-visible {
 }
 
 .main-surface {
+  position: relative;
   margin-left: 248px;
   max-width: 1320px;
   min-height: 100vh;
   padding: 42px clamp(28px, 5vw, 72px) 130px;
+}
+.sync-status-position {
+  position: absolute;
+  top: 42px;
+  right: clamp(28px, 5vw, 72px);
+  z-index: 20;
 }
 .topbar,
 .section-heading {
@@ -845,14 +852,16 @@ h3 {
 .app-status {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  min-height: 32px;
-  padding: 0 10px;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 9px;
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--muted);
-  font-size: 0.75rem;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  font-size: 0.72rem;
   font-weight: 750;
+  backdrop-filter: blur(12px);
 }
 .app-status.has-detail {
   align-items: flex-start;
@@ -1447,6 +1456,20 @@ h3 {
   .main-surface {
     margin-left: 0;
     padding: 26px 16px 178px;
+  }
+  .sync-status-position {
+    position: fixed;
+    top: 26px;
+    right: 76px;
+    z-index: 35;
+  }
+  .sync-status-position.has-detail {
+    top: 76px;
+    right: 16px;
+    max-width: calc(100vw - 32px);
+  }
+  .sync-status-position.has-detail .app-status {
+    max-width: 100%;
   }
   .topbar {
     margin-bottom: 25px;

@@ -69,7 +69,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         >
           <BrandWordmark />
         </Link>
-        <SyncStatus state={syncState} error={syncError} />
+        <div
+          className={`sync-status-position ${syncState === "error" && syncError ? "has-detail" : ""}`}
+        >
+          <SyncStatus state={syncState} error={syncError} />
+        </div>
         {children}
       </main>
 
