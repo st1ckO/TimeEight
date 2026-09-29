@@ -2276,22 +2276,6 @@ h3 {
 .landing-hero-copy {
   min-width: 0;
 }
-.landing-kicker {
-  margin: 0 0 22px;
-  color: var(--teal);
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 0.75rem;
-  font-weight: 850;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-}
-.landing-kicker span {
-  width: 24px;
-  height: 1px;
-  background: currentColor;
-}
 .landing-hero h1 {
   max-width: 690px;
   font-size: clamp(3rem, 5.8vw, 5.65rem);

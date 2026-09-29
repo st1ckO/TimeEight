@@ -16,9 +16,12 @@ describe("AuthForm", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /make time for what matters.*see where the rest goes/i,
+        name: /start a timer.*understand your day/i,
       }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/calm, intentional time tracking/i),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("img", {
         name: /preview of the TimeEight Today dashboard/i,

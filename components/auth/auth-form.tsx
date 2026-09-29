@@ -114,10 +114,7 @@ export function AuthForm({
 
       <section className="landing-hero landing-shell" id="top">
         <div className="landing-hero-copy">
-          <p className="landing-kicker">
-            <span /> Calm, intentional time tracking
-          </p>
-          <h1>Make time for what matters. See where the rest goes.</h1>
+          <h1>Start a timer. Understand your day.</h1>
           <p className="landing-lede">
             Run timers for what you want more of, set daily limits for what you
             want less of, and keep a clear history of how your time adds up.

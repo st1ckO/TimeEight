@@ -18,9 +18,12 @@ test("introduces TimeEight before sign-in and previews the core app", async ({
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: /make time for what matters.*see where the rest goes/i,
+      name: /start a timer.*understand your day/i,
     }),
   ).toBeVisible();
+  await expect(page.getByText(/calm, intentional time tracking/i)).toHaveCount(
+    0,
+  );
   await expect(
     page.getByRole("img", {
       name: /preview of the TimeEight Today dashboard/i,
