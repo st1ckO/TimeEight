@@ -2211,7 +2211,7 @@ h3 {
 
 .landing-page {
   --landing-gutter: clamp(20px, 4vw, 56px);
-  --landing-section-space: clamp(88px, 10vw, 144px);
+  --landing-section-space: clamp(40px, 6vh, 72px);
   --landing-card-gap: clamp(16px, 2vw, 24px);
   min-height: 100vh;
   overflow: clip;
@@ -2597,13 +2597,16 @@ h3 {
   color: #7293f2;
 }
 .landing-intro {
+  min-height: 100svh;
   padding: var(--landing-section-space) 0;
   border-block: 1px solid var(--line);
   background: color-mix(in srgb, var(--surface) 64%, transparent);
+  display: grid;
+  align-items: center;
 }
 .landing-section-heading {
   max-width: 760px;
-  margin-bottom: clamp(42px, 6vw, 68px);
+  margin-bottom: clamp(28px, 4vh, 44px);
 }
 .landing-section-heading h2,
 .landing-signin-copy h2 {
@@ -2626,7 +2629,7 @@ h3 {
 }
 .landing-feature-card {
   min-width: 0;
-  min-height: 445px;
+  min-height: 400px;
   padding: clamp(22px, 2.5vw, 30px);
   border: 1px solid var(--line);
   border-radius: 24px;
@@ -2658,8 +2661,8 @@ h3 {
   flex: 0 0 auto;
 }
 .landing-feature-card > p {
-  min-height: 78px;
-  margin: 20px 0 26px;
+  min-height: 68px;
+  margin: 16px 0 20px;
   color: var(--muted);
   font-size: 0.85rem;
   line-height: 1.65;
@@ -2667,7 +2670,7 @@ h3 {
 .landing-mini-timers,
 .landing-mini-calendar,
 .landing-mini-insights {
-  min-height: 216px;
+  min-height: 190px;
   margin-top: auto;
   padding: 16px;
   border: 1px solid var(--line);
@@ -2796,9 +2799,12 @@ h3 {
   color: var(--amber);
 }
 .landing-signin {
+  min-height: calc(100svh - 100px);
   padding: var(--landing-section-space) 0;
   background: #132019;
   color: #f3f8f5;
+  display: grid;
+  align-items: center;
 }
 .landing-signin-layout {
   display: grid;
@@ -2972,7 +2978,7 @@ h3 {
 @media (max-width: 760px) {
   .landing-page {
     --landing-gutter: 18px;
-    --landing-section-space: 82px;
+    --landing-section-space: 64px;
   }
   .landing-header {
     min-height: 78px;
@@ -2983,6 +2989,10 @@ h3 {
   .landing-hero {
     min-height: 0;
     padding-top: 48px;
+  }
+  .landing-intro,
+  .landing-signin {
+    min-height: 0;
   }
   .landing-hero h1 {
     font-size: clamp(2.8rem, 13vw, 4.4rem);
