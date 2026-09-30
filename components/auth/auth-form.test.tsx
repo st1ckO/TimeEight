@@ -3,8 +3,16 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { AuthForm } from "./auth-form";
 
+const { signInWithOAuth } = vi.hoisted(() => ({
+  signInWithOAuth: vi.fn(),
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
+}));
+
+vi.mock("@/lib/supabase/browser", () => ({
+  createClient: () => ({ auth: { signInWithOAuth } }),
 }));
 
 describe("AuthForm", () => {
@@ -50,6 +58,23 @@ describe("AuthForm", () => {
     ).toBeInTheDocument();
     expect(screen.queryByLabelText(/email/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/secure mail delivery/i)).not.toBeInTheDocument();
+  });
+
+  it("asks Google to show the account chooser", async () => {
+    signInWithOAuth.mockResolvedValueOnce({ error: null });
+    render(<AuthForm configured emailEnabled={false} turnstileSiteKey="" />);
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /continue with google/i }),
+    );
+
+    expect(signInWithOAuth).toHaveBeenCalledWith({
+      provider: "google",
+      options: {
+        redirectTo: "http://localhost:3000/auth/callback",
+        queryParams: { prompt: "select_account" },
+      },
+    });
   });
 
   it("explains how to enable sign-in when the backend is not configured", async () => {
