@@ -43,13 +43,13 @@ describe("AuthForm", () => {
     expect(container).toHaveTextContent("Limit time");
   });
 
-  it("keeps production email auth hidden until SMTP is enabled", () => {
+  it("keeps production email auth and setup copy hidden until SMTP is enabled", () => {
     render(<AuthForm configured emailEnabled={false} turnstileSiteKey="" />);
     expect(
       screen.getByRole("button", { name: /continue with google/i }),
     ).toBeInTheDocument();
     expect(screen.queryByLabelText(/email/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/secure mail delivery/i)).toBeInTheDocument();
+    expect(screen.queryByText(/secure mail delivery/i)).not.toBeInTheDocument();
   });
 
   it("explains how to enable sign-in when the backend is not configured", async () => {

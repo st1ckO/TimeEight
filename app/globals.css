@@ -2847,30 +2847,68 @@ h3 {
   color: var(--ink);
   box-shadow: var(--shadow);
 }
-.auth-card h2 {
-  margin-bottom: 28px;
+.auth-card-header {
+  margin-bottom: 26px;
+}
+.auth-card-header h2 {
+  margin: 7px 0 10px;
+}
+.auth-card-intro {
+  max-width: 34rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
 }
 .google-button {
   width: 100%;
-  min-height: 54px;
-  border: 1px solid var(--line);
-  border-radius: 15px;
-  background: var(--surface-strong);
+  min-height: 56px;
+  border: 1px solid #747775;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #1f1f1f;
   display: grid;
-  grid-template-columns: 28px 1fr 24px;
+  grid-template-columns: 20px 1fr 20px;
   align-items: center;
-  padding: 0 16px;
-  font-weight: 750;
+  gap: 10px;
+  padding: 0 14px;
+  font-family: "Google Sans", Roboto, Arial, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
 }
-.google-button span {
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  color: #4285f4;
+.google-button::after {
+  width: 20px;
+  height: 20px;
+  content: "";
+}
+.google-button:hover:not(:disabled) {
+  border-color: #5f6368;
+  background: #f8faff;
+  box-shadow: 0 6px 16px rgba(23, 33, 29, 0.1);
+}
+.google-button:active:not(:disabled) {
+  box-shadow: 0 2px 7px rgba(23, 33, 29, 0.12);
+}
+.google-button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--teal) 36%, transparent);
+  outline-offset: 3px;
+}
+.google-button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+.google-mark {
+  width: 20px;
+  height: 20px;
+  background: url("/google-g.png") center / contain no-repeat;
+}
+.google-button-label {
+  text-align: center;
 }
 .or-divider {
   display: flex;
@@ -2932,7 +2970,6 @@ h3 {
 .reset-page h1 {
   margin-bottom: 28px;
 }
-.auth-note,
 .form-message {
   padding: 13px 14px;
   border-radius: 12px;
