@@ -55,13 +55,18 @@ export function OnboardingForm() {
       return;
     }
     setPending(true);
-    await app.updateProfile({ ...profile.data, onboardingCompleted: true });
-    if (!keepExamples) {
-      for (const task of app.tasks.filter((item) => !item.archivedAt)) {
-        await app.archiveTask(task.id);
-      }
+    setMessage(null);
+    try {
+      await app.completeOnboarding(profile.data, keepExamples);
+      router.replace("/today");
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Couldn't finish setup. Please try again.",
+      );
+      setPending(false);
     }
-    router.push("/today");
   }
 
   return (
@@ -131,8 +136,11 @@ export function OnboardingForm() {
             {message}
           </p>
         )}
-        <button className="primary-button onboarding-submit" disabled={pending}>
-          {pending ? "Saving…" : "Open my day"}
+        <button
+          className="primary-button onboarding-submit"
+          disabled={pending || !app.hydrated}
+        >
+          {!app.hydrated ? "Loading…" : pending ? "Saving…" : "Open my day"}
           <ArrowRight size={18} />
         </button>
       </form>

@@ -1,31 +1,34 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useTimeEight } from "@/components/app/app-provider";
 import { OnboardingForm } from "./onboarding-form";
 
-const push = vi.fn();
+const replace = vi.fn();
+const completeOnboarding = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push }),
+  useRouter: () => ({ replace }),
 }));
 
 vi.mock("@/components/app/app-provider", () => ({
   useTimeEight: vi.fn(),
 }));
 
-describe("OnboardingForm timezone detection", () => {
+describe("OnboardingForm", () => {
   beforeEach(() => {
-    push.mockClear();
+    replace.mockClear();
+    completeOnboarding.mockReset();
     vi.mocked(useTimeEight).mockReturnValue({
       profile: {
         displayName: "Ralph",
         timezone: "UTC",
         theme: "system",
       },
+      hydrated: true,
       tasks: [],
-      updateProfile: vi.fn(),
-      archiveTask: vi.fn(),
+      completeOnboarding,
     } as unknown as ReturnType<typeof useTimeEight>);
     vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({
       locale: "en-US",
@@ -45,5 +48,48 @@ describe("OnboardingForm timezone detection", () => {
     expect(screen.getByRole("combobox", { name: /Your timezone/ })).toHaveValue(
       "Asia/Manila",
     );
+  });
+
+  it("keeps the example timers when the default choice is checked", async () => {
+    render(<OnboardingForm />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Open my day" }));
+
+    expect(completeOnboarding).toHaveBeenCalledWith(
+      {
+        displayName: "Ralph",
+        theme: "system",
+        timezone: "Asia/Manila",
+      },
+      true,
+    );
+    expect(replace).toHaveBeenCalledWith("/today");
+  });
+
+  it("passes the user's choice to remove the example timers", async () => {
+    render(<OnboardingForm />);
+    await userEvent.click(
+      screen.getByRole("checkbox", {
+        name: /keep three editable example timers/i,
+      }),
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Open my day" }));
+
+    expect(completeOnboarding).toHaveBeenCalledWith(expect.any(Object), false);
+  });
+
+  it("keeps onboarding open when completion cannot be synchronized", async () => {
+    completeOnboarding.mockRejectedValueOnce(
+      new Error("Connect to the internet to finish setup."),
+    );
+    render(<OnboardingForm />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Open my day" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Connect to the internet to finish setup.",
+    );
+    expect(replace).not.toHaveBeenCalled();
   });
 });
