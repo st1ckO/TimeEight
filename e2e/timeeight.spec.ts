@@ -343,7 +343,9 @@ test("saves settings only when preferences change", async ({
   await expect(
     page.getByRole("button", { name: "Saved", exact: true }),
   ).toBeDisabled();
-  await expect(page.getByRole("status")).toContainText("Changes saved.");
+  await expect(
+    page.getByRole("status").filter({ hasText: "Changes saved." }),
+  ).toBeVisible();
   await name.fill(originalName + " another edit");
   await expect(save).toBeEnabled();
   await name.fill(originalName + " edited");
@@ -697,6 +699,7 @@ test("shows a tracking-only indicator away from Today", async ({ page }) => {
   await page
     .getByRole("button", { name: "Start Morning walk", exact: true })
     .click();
+  await expect(page.locator(".active-timers-card li")).toHaveCount(1);
   await expect(dock).toHaveCount(0);
   for (const route of ["Calendar", "Insights", "Settings"]) {
     await page.getByRole("link", { name: route, exact: true }).first().click();
@@ -705,16 +708,19 @@ test("shows a tracking-only indicator away from Today", async ({ page }) => {
     await expect(dock.getByRole("button")).toHaveCount(0);
   }
   await page.getByRole("link", { name: "Today", exact: true }).first().click();
+  await expect(page).toHaveURL(/\/today$/);
   await expect(dock).toHaveCount(0);
   await page
     .getByRole("button", { name: "Start Portfolio project", exact: true })
     .click();
+  await expect(page.locator(".active-timers-card li")).toHaveCount(2);
   await page
     .getByRole("link", { name: "Calendar", exact: true })
     .first()
     .click();
   await expect(dock).toContainText("2 timers active");
   await page.getByRole("link", { name: "Today", exact: true }).first().click();
+  await expect(page).toHaveURL(/\/today$/);
   await page
     .locator(".active-timers-card")
     .getByRole("button", { name: "Pause all", exact: true })

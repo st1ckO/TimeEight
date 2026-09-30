@@ -7,6 +7,10 @@ test("introduces TimeEight before sign-in and previews the core app", async ({
   await page.goto("/login");
   await page.emulateMedia({ reducedMotion: "no-preference" });
 
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-scroll-behavior",
+    "smooth",
+  );
   await expect
     .poll(() =>
       page.evaluate(
