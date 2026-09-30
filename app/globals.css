@@ -3293,6 +3293,14 @@ h3 {
 .onboarding-submit {
   justify-content: center;
 }
+.onboarding-save-message {
+  display: grid;
+  gap: 8px;
+}
+.onboarding-save-message .text-button {
+  width: fit-content;
+  margin: 0;
+}
 .settings-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
