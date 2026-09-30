@@ -2,6 +2,25 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { phraseForDate } from "../components/today/daily-phrase";
 
+test("uses the dark control scheme on the first system-theme render", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/today");
+  await page.getByRole("button", { name: "Task list", exact: true }).click();
+
+  const search = page.getByRole("textbox", { name: "Find a task" });
+  await expect(search).toBeVisible();
+  await expect
+    .poll(() =>
+      search.evaluate((input) => ({
+        control: getComputedStyle(input).colorScheme,
+        document: getComputedStyle(document.documentElement).colorScheme,
+      })),
+    )
+    .toEqual({ control: "dark", document: "dark" });
+});
+
 test("shows the fixed goal in onboarding and keeps Settings focused on preferences", async ({
   page,
 }) => {
