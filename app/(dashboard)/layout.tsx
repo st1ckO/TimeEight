@@ -1,5 +1,6 @@
 import { AppProvider } from "@/components/app/app-provider";
 import { AppShell } from "@/components/app/app-shell";
+import { normalizeDisplayName } from "@/lib/domain/profile";
 import { localDateAt } from "@/lib/domain/time";
 import type { Profile } from "@/lib/domain/types";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -32,9 +33,9 @@ export default async function DashboardLayout({
       profile = {
         id: authData.user.id,
         displayName:
-          data?.display_name ||
-          authData.user.user_metadata.full_name ||
-          "Friend",
+          normalizeDisplayName(
+            data?.display_name || authData.user.user_metadata.full_name,
+          ) || "Friend",
         timezone: data?.timezone || "UTC",
         theme: data?.theme || "system",
         onboardingCompleted: data?.onboarding_completed ?? false,
