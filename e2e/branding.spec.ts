@@ -10,9 +10,9 @@ test("shows the fixed goal in onboarding and keeps Settings focused on preferenc
   await page.goto("/settings");
   await expect(page.getByLabel("Display name")).toHaveAttribute(
     "maxlength",
-    "40",
+    "25",
   );
-  await expect(page.getByText("Up to 40 characters.")).toBeVisible();
+  await expect(page.getByText("Up to 25 characters.")).toBeVisible();
   await expect(page.getByText(/Daily ring goal/)).toHaveCount(0);
   await expect(page.getByRole("spinbutton")).toHaveCount(0);
   await expect(

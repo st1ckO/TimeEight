@@ -1,4 +1,4 @@
-export const DISPLAY_NAME_MAX_LENGTH = 40;
+export const DISPLAY_NAME_MAX_LENGTH = 25;
 
 export function normalizeDisplayName(value: unknown) {
   if (typeof value !== "string") return "";
