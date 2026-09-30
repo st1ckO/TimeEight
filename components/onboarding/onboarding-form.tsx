@@ -4,6 +4,10 @@ import { ArrowRight, Check, Clock3, MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 import { useTimeEight } from "@/components/app/app-provider";
+import {
+  OnboardingSaveTimeoutError,
+  waitForOnboardingSave,
+} from "@/lib/auth/onboarding-completion";
 import { DISPLAY_NAME_MAX_LENGTH } from "@/lib/domain/profile";
 import { profileSchema } from "@/lib/domain/schemas";
 
@@ -42,10 +46,13 @@ export function OnboardingForm() {
     (suggestedZones.includes(detected) ? detected : app.profile.timezone);
   const [keepExamples, setKeepExamples] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+  const [messageIsError, setMessageIsError] = useState(false);
+  const [showTodayRecovery, setShowTodayRecovery] = useState(false);
   const [pending, setPending] = useState(false);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    setShowTodayRecovery(false);
     const profile = profileSchema.safeParse({
       displayName,
       timezone,
@@ -53,21 +60,42 @@ export function OnboardingForm() {
     });
     if (!profile.success) {
       setMessage("Check your name and timezone.");
+      setMessageIsError(true);
       return;
     }
     setPending(true);
-    setMessage(null);
+    setMessage("Saving your setup…");
+    setMessageIsError(false);
     try {
-      await app.completeOnboarding(profile.data, keepExamples);
-      router.replace("/today");
-    } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "Couldn't finish setup. Please try again.",
+      await waitForOnboardingSave(
+        app.completeOnboarding(profile.data, keepExamples),
       );
+      setMessage("Setup saved. Opening your day…");
+      setMessageIsError(false);
+      setShowTodayRecovery(true);
+      router.replace("/today");
+      router.refresh();
+    } catch (error) {
+      if (error instanceof OnboardingSaveTimeoutError) {
+        setMessage(
+          "Saving is taking longer than expected. Your setup may already be saved. Open Today to check, or try again.",
+        );
+        setShowTodayRecovery(true);
+      } else {
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : "Couldn't finish setup. Please try again.",
+        );
+      }
+      setMessageIsError(true);
+    } finally {
       setPending(false);
     }
+  }
+
+  function openToday() {
+    window.location.assign(new URL("/today", window.location.origin));
   }
 
   return (
@@ -134,9 +162,17 @@ export function OnboardingForm() {
           </span>
         </label>
         {message && (
-          <p className="form-message" role="alert">
-            {message}
-          </p>
+          <div
+            className="form-message onboarding-save-message"
+            role={messageIsError ? "alert" : "status"}
+          >
+            <span>{message}</span>
+            {showTodayRecovery && (
+              <button className="text-button" type="button" onClick={openToday}>
+                Open Today
+              </button>
+            )}
+          </div>
         )}
         <button
           className="primary-button onboarding-submit"

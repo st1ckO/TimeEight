@@ -1,16 +1,18 @@
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useTimeEight } from "@/components/app/app-provider";
+import { ONBOARDING_SAVE_TIMEOUT_MS } from "@/lib/auth/onboarding-completion";
 import { DISPLAY_NAME_MAX_LENGTH } from "@/lib/domain/profile";
 import { OnboardingForm } from "./onboarding-form";
 
 const replace = vi.fn();
+const refresh = vi.fn();
 const completeOnboarding = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace }),
+  useRouter: () => ({ refresh, replace }),
 }));
 
 vi.mock("@/components/app/app-provider", () => ({
@@ -20,6 +22,7 @@ vi.mock("@/components/app/app-provider", () => ({
 describe("OnboardingForm", () => {
   beforeEach(() => {
     replace.mockClear();
+    refresh.mockClear();
     completeOnboarding.mockReset();
     vi.mocked(useTimeEight).mockReturnValue({
       profile: {
@@ -65,6 +68,11 @@ describe("OnboardingForm", () => {
       true,
     );
     expect(replace).toHaveBeenCalledWith("/today");
+    expect(refresh).toHaveBeenCalled();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Setup saved. Opening your day…",
+    );
+    expect(screen.getByRole("button", { name: "Open my day" })).toBeEnabled();
   });
 
   it("exposes the display-name length limit", () => {
@@ -104,5 +112,31 @@ describe("OnboardingForm", () => {
       "Connect to the internet to finish setup.",
     );
     expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("offers a recovery route when saving does not settle", async () => {
+    vi.useFakeTimers();
+    try {
+      completeOnboarding.mockReturnValueOnce(new Promise(() => undefined));
+      render(<OnboardingForm />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Open my day" }));
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Saving your setup…",
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(ONBOARDING_SAVE_TIMEOUT_MS);
+      });
+
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Your setup may already be saved.",
+      );
+      expect(screen.getByRole("button", { name: "Open Today" })).toBeVisible();
+      expect(screen.getByRole("button", { name: "Open my day" })).toBeEnabled();
+      expect(replace).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

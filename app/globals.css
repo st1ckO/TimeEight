@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: light;
   --brand-light-display: block;
   --brand-dark-display: none;
   --canvas: #f5f3ed;
@@ -21,6 +22,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
+    color-scheme: dark;
     --brand-light-display: none;
     --brand-dark-display: block;
     --canvas: #101512;
@@ -3292,6 +3294,14 @@ h3 {
 }
 .onboarding-submit {
   justify-content: center;
+}
+.onboarding-save-message {
+  display: grid;
+  gap: 8px;
+}
+.onboarding-save-message .text-button {
+  width: fit-content;
+  margin: 0;
 }
 .settings-grid {
   display: grid;
