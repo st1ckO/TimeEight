@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 import type { Database } from "./lib/supabase/database.types";
+import { onboardingRedirect } from "./lib/auth/onboarding-routing";
 import { getSupabaseConfig, isSupabaseConfigured } from "./lib/supabase/config";
 
 const protectedPrefixes = [
@@ -43,8 +44,19 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (request.nextUrl.pathname === "/login" && data.user) {
-    return NextResponse.redirect(new URL("/today", request.url));
+  if (data.user && (isProtected || request.nextUrl.pathname === "/login")) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("onboarding_completed")
+      .eq("id", data.user.id)
+      .single();
+    const destination = onboardingRedirect(
+      request.nextUrl.pathname,
+      profile?.onboarding_completed ?? false,
+    );
+    if (destination) {
+      return NextResponse.redirect(new URL(destination, request.url));
+    }
   }
 
   return response;

@@ -34,6 +34,7 @@ import {
 } from "@/lib/domain/time";
 import { aggregateStreakEntries, calculateStreak } from "@/lib/domain/streak";
 import { aggregateGoalProgress } from "@/lib/domain/goal-progress";
+import { shouldSeedExampleTasks } from "@/lib/domain/onboarding";
 import {
   overridesLimitOnDate,
   timerLimitStopAt,
@@ -170,6 +171,14 @@ interface AppContextValue {
     theme: ThemePreference;
     onboardingCompleted?: boolean;
   }): Promise<void>;
+  completeOnboarding(
+    input: {
+      displayName: string;
+      timezone: string;
+      theme: ThemePreference;
+    },
+    keepExamples: boolean,
+  ): Promise<void>;
   clearUserData(): Promise<void>;
   restoreBackup(input: Backup): Promise<void>;
   dismissNotice(): void;
@@ -480,7 +489,7 @@ export function AppProvider({
           await queue(userId, "goal-upsert", { ...goal });
         }
       }
-      if (storedTasks.length === 0 && !existingProfile && !remoteAfter) {
+      if (shouldSeedExampleTasks(storedProfile, storedTasks.length)) {
         storedTasks = seedTasks(userId);
         for (const task of storedTasks)
           await queue(
@@ -1223,7 +1232,7 @@ export function AppProvider({
     await persistMutation("entry-delete", { id });
   }
 
-  async function updateProfile(input: {
+  async function saveProfile(input: {
     displayName: string;
     timezone: string;
     theme: ThemePreference;
@@ -1237,10 +1246,40 @@ export function AppProvider({
     };
     setProfile(next);
     await getLocalDatabase()?.profiles.put(next);
-    await persistMutation(
+    return persistMutation(
       "profile-update",
       next as unknown as Record<string, unknown>,
     );
+  }
+
+  async function updateProfile(input: {
+    displayName: string;
+    timezone: string;
+    theme: ThemePreference;
+    onboardingCompleted?: boolean;
+  }) {
+    await saveProfile(input);
+  }
+
+  async function completeOnboarding(
+    input: {
+      displayName: string;
+      timezone: string;
+      theme: ThemePreference;
+    },
+    keepExamples: boolean,
+  ) {
+    if (!hydrated) throw new Error("Wait for setup to finish loading.");
+    if (userId !== "local-demo" && !navigator.onLine) {
+      throw new Error("Connect to the internet to finish setup.");
+    }
+    if (!keepExamples) {
+      for (const task of tasks.filter((item) => !item.archivedAt)) {
+        await archiveTask(task.id);
+      }
+    }
+    const result = await saveProfile({ ...input, onboardingCompleted: true });
+    if (result?.error) throw new Error(result.error);
   }
 
   async function restoreBackup(input: Backup) {
@@ -1405,6 +1444,7 @@ export function AppProvider({
     revertEntryCorrection,
     deleteEntry,
     updateProfile,
+    completeOnboarding,
     clearUserData,
     restoreBackup,
     dismissNotice,
