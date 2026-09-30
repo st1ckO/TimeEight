@@ -160,22 +160,29 @@ export function AuthForm({
             </span>
           </div>
           <div className="auth-card">
-            <p className="eyebrow">Your account</p>
-            <h2>
-              {mode === "reset"
-                ? "Reset your password"
-                : mode === "signin"
-                  ? "Continue to TimeEight"
-                  : "Create your TimeEight account"}
-            </h2>
+            <div className="auth-card-header">
+              <p className="eyebrow">Your account</p>
+              <h2>
+                {mode === "reset"
+                  ? "Reset your password"
+                  : mode === "signin"
+                    ? "Continue to TimeEight"
+                    : "Create your TimeEight account"}
+              </h2>
+              <p className="auth-card-intro">
+                Use your Google account to keep your timers, tasks, and history
+                available across devices.
+              </p>
+            </div>
             <button
               className="google-button"
               type="button"
               onClick={signInWithGoogle}
               disabled={pending}
+              aria-busy={pending}
             >
-              <span aria-hidden>G</span>Continue with Google
-              <ArrowRight size={18} />
+              <span className="google-mark" aria-hidden="true" />
+              <span className="google-button-label">Continue with Google</span>
             </button>
             {emailEnabled && (
               <>
@@ -255,12 +262,6 @@ export function AuthForm({
                   )}
                 </div>
               </>
-            )}
-            {!emailEnabled && (
-              <p className="auth-note">
-                Email sign-in will open after secure mail delivery is
-                configured.
-              </p>
             )}
             {message && (
               <p className="form-message" role="status">

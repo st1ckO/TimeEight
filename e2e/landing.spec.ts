@@ -104,3 +104,35 @@ test("introduces TimeEight before sign-in and previews the core app", async ({
     calendarBounds!.containerRight,
   );
 });
+
+test("fits each landing section within a 16:9 desktop frame", async ({
+  page,
+}, testInfo) => {
+  for (const { width, height } of [
+    { width: 1920, height: 1080 },
+    { width: 1366, height: 768 },
+  ]) {
+    await page.setViewportSize({ width, height });
+    await page.goto("/login");
+
+    const frames = await page.evaluate(() => {
+      const sectionHeight = (selector: string) =>
+        document.querySelector(selector)?.getBoundingClientRect().height ?? 0;
+      return {
+        viewport: window.innerHeight,
+        hero: sectionHeight(".landing-header") + sectionHeight(".landing-hero"),
+        intro: sectionHeight(".landing-intro"),
+        signin:
+          sectionHeight(".landing-signin") + sectionHeight(".landing-footer"),
+      };
+    });
+
+    expect(frames.hero).toBeLessThanOrEqual(frames.viewport + 2);
+    expect(frames.intro).toBeLessThanOrEqual(frames.viewport + 2);
+    expect(frames.signin).toBeLessThanOrEqual(frames.viewport + 2);
+    await page.screenshot({
+      path: testInfo.outputPath(`landing-${width}x${height}.png`),
+      fullPage: true,
+    });
+  }
+});
