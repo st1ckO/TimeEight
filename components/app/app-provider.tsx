@@ -35,12 +35,14 @@ import {
 import { aggregateStreakEntries, calculateStreak } from "@/lib/domain/streak";
 import { aggregateGoalProgress } from "@/lib/domain/goal-progress";
 import { shouldSeedExampleTasks } from "@/lib/domain/onboarding";
+import { normalizeDisplayName } from "@/lib/domain/profile";
 import {
   overridesLimitOnDate,
   timerLimitStopAt,
 } from "@/lib/domain/timer-limits";
 import { useTimerLeaveWarning } from "./use-timer-leave-warning";
 import {
+  profileSchema,
   taskSchema,
   taskListStateSchema,
   taskDailyTargetSchema,
@@ -445,6 +447,10 @@ export function AppProvider({
         storedTargets = remoteAfter.taskDailyTargets;
         storedEntries = remoteAfter.entries;
       }
+      storedProfile = {
+        ...storedProfile,
+        displayName: normalizeDisplayName(storedProfile.displayName),
+      };
       const latestRemote = remoteAfter ?? remoteBefore;
       const timersNeedingChoice = remoteTimersNeedingRecovery(
         latestRemote?.activeTimers ?? [],
@@ -1244,9 +1250,10 @@ export function AppProvider({
     theme: ThemePreference;
     onboardingCompleted?: boolean;
   }) {
+    const validated = profileSchema.parse(input);
     const next = {
       ...profile,
-      ...input,
+      ...validated,
       onboardingCompleted:
         input.onboardingCompleted ?? profile.onboardingCompleted,
     };

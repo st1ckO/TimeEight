@@ -4,6 +4,7 @@ import { ArrowRight, Check, Clock3, MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 import { useTimeEight } from "@/components/app/app-provider";
+import { DISPLAY_NAME_MAX_LENGTH } from "@/lib/domain/profile";
 import { profileSchema } from "@/lib/domain/schemas";
 
 const suggestedZones = [
@@ -88,9 +89,10 @@ export function OnboardingForm() {
           <input
             value={displayName}
             onChange={(event) => setDisplayName(event.target.value)}
-            maxLength={80}
+            maxLength={DISPLAY_NAME_MAX_LENGTH}
             placeholder="Your name"
           />
+          <small>Up to {DISPLAY_NAME_MAX_LENGTH} characters.</small>
         </label>
         <label>
           <span>

@@ -8,6 +8,8 @@ import { ImportBackupDialog } from "@/components/settings/import-backup-dialog";
 import { DeleteAccountDialog } from "@/components/settings/delete-account-dialog";
 import { TimezonePicker } from "@/components/settings/timezone-picker";
 import { useTimeEight } from "@/components/app/app-provider";
+import { DISPLAY_NAME_MAX_LENGTH } from "@/lib/domain/profile";
+import { profileSchema } from "@/lib/domain/schemas";
 import type { ThemePreference } from "@/lib/domain/types";
 import { clearLocalUser } from "@/lib/offline/db";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -136,11 +138,22 @@ export function SettingsPage() {
   async function save(event: React.FormEvent) {
     event.preventDefault();
     if (!hasChanges || saving) return;
+    const profile = profileSchema.safeParse({
+      displayName: name,
+      timezone,
+      theme,
+    });
+    if (!profile.success) {
+      setMessage(
+        `Display name must be ${DISPLAY_NAME_MAX_LENGTH} characters or fewer.`,
+      );
+      return;
+    }
     setSaving(true);
     setMessage(null);
     setSaved(false);
     try {
-      await app.updateProfile({ displayName: name, timezone, theme });
+      await app.updateProfile(profile.data);
       document.documentElement.dataset.theme = theme === "system" ? "" : theme;
       setNameOverride(null);
       setTimezoneOverride(null);
@@ -220,8 +233,9 @@ export function SettingsPage() {
                 setMessage(null);
                 setSaved(false);
               }}
-              maxLength={80}
+              maxLength={DISPLAY_NAME_MAX_LENGTH}
             />
+            <small>Up to {DISPLAY_NAME_MAX_LENGTH} characters.</small>
           </label>
           <div className="entry-task-field">
             <span id={timezoneLabelId}>Timezone</span>

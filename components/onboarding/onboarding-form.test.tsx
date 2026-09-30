@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useTimeEight } from "@/components/app/app-provider";
+import { DISPLAY_NAME_MAX_LENGTH } from "@/lib/domain/profile";
 import { OnboardingForm } from "./onboarding-form";
 
 const replace = vi.fn();
@@ -64,6 +65,18 @@ describe("OnboardingForm", () => {
       true,
     );
     expect(replace).toHaveBeenCalledWith("/today");
+  });
+
+  it("exposes the display-name length limit", () => {
+    render(<OnboardingForm />);
+
+    expect(screen.getByPlaceholderText("Your name")).toHaveAttribute(
+      "maxlength",
+      String(DISPLAY_NAME_MAX_LENGTH),
+    );
+    expect(
+      screen.getByText(`Up to ${DISPLAY_NAME_MAX_LENGTH} characters.`),
+    ).toBeVisible();
   });
 
   it("passes the user's choice to remove the example timers", async () => {
