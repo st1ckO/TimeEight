@@ -2,10 +2,15 @@
 
 import { useState } from "react";
 import { Turnstile } from "@marsidev/react-turnstile";
-import { ArrowRight, Clock3 } from "lucide-react";
+import { ArrowDown, ArrowRight, LockKeyhole } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import { BrandWordmark } from "@/components/ui/brand-wordmark";
+import {
+  LandingFeaturePreviews,
+  LandingHeroPreview,
+  LandingPrinciples,
+} from "./landing-previews";
 
 interface AuthFormProps {
   configured: boolean;
@@ -90,144 +95,185 @@ export function AuthForm({
   }
 
   return (
-    <main className="auth-page">
-      <section className="auth-story" aria-label="About TimeEight">
+    <main className="landing-page">
+      <header className="landing-header landing-shell">
         <a
-          className="brand auth-brand"
-          href="/today"
-          aria-label="Time eIghT home"
+          className="brand landing-brand"
+          href="#top"
+          aria-label="TimeEight home"
         >
           <BrandWordmark />
         </a>
-        <div>
-          <p className="eyebrow">Time it your way</p>
-          <h1>A clearer relationship with your time.</h1>
-          <p>
-            Build up the things you want more of. Put a gentle limit on the
-            things you want less of. TimeEight keeps the timer and leaves the
-            judgment behind.
+        <nav aria-label="Landing page">
+          <a href="#inside">Inside the app</a>
+          <a className="landing-nav-cta" href="#signin">
+            Sign in
+          </a>
+        </nav>
+      </header>
+
+      <section className="landing-hero landing-shell" id="top">
+        <div className="landing-hero-copy">
+          <h1>Start a timer. Understand your day.</h1>
+          <p className="landing-lede">
+            Run timers for what you want more of, set daily limits for what you
+            want less of, and keep a clear history of how your time adds up.
           </p>
+          <div className="landing-actions">
+            <a className="landing-primary-cta" href="#signin">
+              Get started <ArrowRight size={17} />
+            </a>
+            <a className="landing-secondary-cta" href="#inside">
+              See inside the app <ArrowDown size={16} />
+            </a>
+          </div>
+          <LandingPrinciples />
         </div>
-        <div className="auth-promise">
-          <Clock3 size={20} />
-          <span>
-            Your task names and time history stay private to your account.
-          </span>
+        <LandingHeroPreview />
+      </section>
+
+      <section className="landing-intro" id="inside">
+        <div className="landing-shell">
+          <div className="landing-section-heading">
+            <p className="eyebrow">One place for the whole picture</p>
+            <h2>From the timer you start to the patterns you notice.</h2>
+            <p>
+              TimeEight stays simple while you are tracking, then gives you
+              enough context to understand how your time actually unfolded.
+            </p>
+          </div>
+          <LandingFeaturePreviews />
         </div>
       </section>
-      <section className="auth-panel">
-        <div className="auth-card">
-          <p className="eyebrow">Welcome</p>
-          <h2>
-            {mode === "reset"
-              ? "Reset your password"
-              : mode === "signin"
-                ? "Continue to your timers"
-                : "Create your TimeEight account"}
-          </h2>
-          <button
-            className="google-button"
-            type="button"
-            onClick={signInWithGoogle}
-            disabled={pending}
-          >
-            <span aria-hidden>G</span>Continue with Google
-            <ArrowRight size={18} />
-          </button>
-          {emailEnabled && (
-            <>
-              <div className="or-divider">
-                <span>or use email</span>
-              </div>
-              <form className="auth-form" onSubmit={submitEmail}>
-                <label>
-                  Email
-                  <input
-                    type="email"
-                    name="email"
-                    autoComplete="email"
-                    required
-                  />
-                </label>
-                {mode !== "reset" && (
+
+      <section className="landing-signin" id="signin">
+        <div className="landing-shell landing-signin-layout">
+          <div className="landing-signin-copy">
+            <p className="eyebrow">Ready when you are</p>
+            <h2>Keep your timers and history with you.</h2>
+            <p>
+              Sign in to carry your tasks across devices. Your task names and
+              tracked history stay private to your account.
+            </p>
+            <span>
+              <LockKeyhole size={17} /> Private by design
+            </span>
+          </div>
+          <div className="auth-card">
+            <p className="eyebrow">Your account</p>
+            <h2>
+              {mode === "reset"
+                ? "Reset your password"
+                : mode === "signin"
+                  ? "Continue to TimeEight"
+                  : "Create your TimeEight account"}
+            </h2>
+            <button
+              className="google-button"
+              type="button"
+              onClick={signInWithGoogle}
+              disabled={pending}
+            >
+              <span aria-hidden>G</span>Continue with Google
+              <ArrowRight size={18} />
+            </button>
+            {emailEnabled && (
+              <>
+                <div className="or-divider">
+                  <span>or use email</span>
+                </div>
+                <form className="auth-form" onSubmit={submitEmail}>
                   <label>
-                    Password
+                    Email
                     <input
-                      type="password"
-                      name="password"
-                      autoComplete={
-                        mode === "signin" ? "current-password" : "new-password"
-                      }
-                      minLength={12}
+                      type="email"
+                      name="email"
+                      autoComplete="email"
                       required
                     />
                   </label>
-                )}
-                {turnstileSiteKey ? (
-                  <Turnstile
-                    siteKey={turnstileSiteKey}
-                    onSuccess={setCaptchaToken}
-                    onExpire={() => setCaptchaToken("")}
-                    options={{ theme: "auto" }}
-                  />
-                ) : (
-                  <p className="form-message" role="status">
-                    Turnstile must be configured before email authentication can
-                    be used publicly.
-                  </p>
-                )}
-                <button
-                  className="primary-button auth-submit"
-                  disabled={pending || !turnstileSiteKey}
-                >
-                  {mode === "reset"
-                    ? "Send reset link"
-                    : mode === "signin"
-                      ? "Sign in"
-                      : "Create account"}
-                </button>
-              </form>
-              <div className="auth-links">
-                <button
-                  className="text-button"
-                  type="button"
-                  onClick={() =>
-                    setMode(mode === "signin" ? "signup" : "signin")
-                  }
-                >
-                  {mode === "signin"
-                    ? "New here? Create an account"
-                    : "Return to sign in"}
-                </button>
-                {mode === "signin" && (
+                  {mode !== "reset" && (
+                    <label>
+                      Password
+                      <input
+                        type="password"
+                        name="password"
+                        autoComplete={
+                          mode === "signin"
+                            ? "current-password"
+                            : "new-password"
+                        }
+                        minLength={12}
+                        required
+                      />
+                    </label>
+                  )}
+                  {turnstileSiteKey ? (
+                    <Turnstile
+                      siteKey={turnstileSiteKey}
+                      onSuccess={setCaptchaToken}
+                      onExpire={() => setCaptchaToken("")}
+                      options={{ theme: "auto" }}
+                    />
+                  ) : (
+                    <p className="form-message" role="status">
+                      Turnstile must be configured before email authentication
+                      can be used publicly.
+                    </p>
+                  )}
+                  <button
+                    className="primary-button auth-submit"
+                    disabled={pending || !turnstileSiteKey}
+                  >
+                    {mode === "reset"
+                      ? "Send reset link"
+                      : mode === "signin"
+                        ? "Sign in"
+                        : "Create account"}
+                  </button>
+                </form>
+                <div className="auth-links">
                   <button
                     className="text-button"
                     type="button"
-                    onClick={() => setMode("reset")}
+                    onClick={() =>
+                      setMode(mode === "signin" ? "signup" : "signin")
+                    }
                   >
-                    Forgot password?
+                    {mode === "signin"
+                      ? "New here? Create an account"
+                      : "Return to sign in"}
                   </button>
-                )}
-              </div>
-            </>
-          )}
-          {!emailEnabled && (
-            <p className="auth-note">
-              Email sign-in will open after secure mail delivery is configured.
-            </p>
-          )}
-          {message && (
-            <p className="form-message" role="status">
-              {message}
-            </p>
-          )}
-          {!configured && (
-            <a className="demo-link" href="/today">
-              Explore the local demo <ArrowRight size={17} />
-            </a>
-          )}
+                  {mode === "signin" && (
+                    <button
+                      className="text-button"
+                      type="button"
+                      onClick={() => setMode("reset")}
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+            {!emailEnabled && (
+              <p className="auth-note">
+                Email sign-in will open after secure mail delivery is
+                configured.
+              </p>
+            )}
+            {message && (
+              <p className="form-message" role="status">
+                {message}
+              </p>
+            )}
+          </div>
         </div>
       </section>
+      <footer className="landing-footer landing-shell">
+        <BrandWordmark />
+        <span>Build time. Limit time. See the full picture.</span>
+      </footer>
     </main>
   );
 }
