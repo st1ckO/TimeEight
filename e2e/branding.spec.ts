@@ -34,9 +34,7 @@ test("upgrades a custom goal without rewriting earlier daily goals", async ({
   page,
 }) => {
   await page.goto("/today");
-  await expect(
-    page.getByRole("heading", { name: "Morning walk" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Focus time" })).toBeVisible();
   const dates = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open("timeeight");

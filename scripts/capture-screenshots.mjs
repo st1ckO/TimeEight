@@ -5,12 +5,7 @@ const output = "docs/screenshots";
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch();
 
-async function capture(
-  name,
-  viewport,
-  path = "/today",
-  ready = "Morning walk",
-) {
+async function capture(name, viewport, path = "/today", ready = "Focus time") {
   const context = await browser.newContext({ viewport });
   const page = await context.newPage();
   await page.goto(`http://localhost:3000${path}`);

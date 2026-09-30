@@ -27,7 +27,7 @@ test("restores exported JSON only after full overwrite confirmation", async ({
   };
   await page.getByRole("link", { name: "Today", exact: true }).first().click();
   await page
-    .getByRole("button", { name: "Start Morning walk", exact: true })
+    .getByRole("button", { name: "Start Focus time", exact: true })
     .click();
   await page
     .getByRole("link", { name: "Settings", exact: true })
@@ -81,11 +81,11 @@ test("restores exported JSON only after full overwrite confirmation", async ({
     page.getByText("No timers running", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Start Morning walk", exact: true }),
+    page.getByRole("button", { name: "Start Focus time", exact: true }),
   ).toHaveCount(0);
   await page.reload();
   await expect(
-    page.getByRole("button", { name: "Start Morning walk", exact: true }),
+    page.getByRole("button", { name: "Start Focus time", exact: true }),
   ).toHaveCount(0);
   await page
     .getByRole("link", { name: "Settings", exact: true })
@@ -108,7 +108,7 @@ test("restores exported JSON only after full overwrite confirmation", async ({
   );
   await page.getByRole("link", { name: "Today", exact: true }).first().click();
   await expect(
-    page.getByRole("button", { name: "Start Morning walk", exact: true }),
+    page.getByRole("button", { name: "Start Focus time", exact: true }),
   ).toHaveCount(1);
 });
 
@@ -576,9 +576,9 @@ test("keeps calendar entry controls balanced in both themes", async ({
       await expect(select).toBeFocused();
       await select.click();
       await page
-        .getByRole("option", { name: "Watch list", exact: true })
+        .getByRole("option", { name: "Screen time", exact: true })
         .click();
-      await expect(select).toContainText("Watch list");
+      await expect(select).toContainText("Screen time");
       await expect(dialog).toContainText(
         "Added or corrected time counts toward daily totals, but not the three-hour streak.",
       );
@@ -614,12 +614,7 @@ test("keeps the active card fixed and scrolls consistent timer rows", async ({
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Task name").fill(longName);
   await dialog.getByRole("button", { name: "Add task", exact: true }).click();
-  for (const name of [
-    "Morning walk",
-    "Portfolio project",
-    "Watch list",
-    longName,
-  ]) {
+  for (const name of ["Focus time", "Learning", "Screen time", longName]) {
     await page
       .getByRole("button", { name: `Start ${name}`, exact: true })
       .click();
@@ -697,7 +692,7 @@ test("shows a tracking-only indicator away from Today", async ({ page }) => {
   const dock = page.locator(".active-dock");
   await expect(dock).toHaveCount(0);
   await page
-    .getByRole("button", { name: "Start Morning walk", exact: true })
+    .getByRole("button", { name: "Start Focus time", exact: true })
     .click();
   await expect(page.locator(".active-timers-card li")).toHaveCount(1);
   await expect(dock).toHaveCount(0);
@@ -711,7 +706,7 @@ test("shows a tracking-only indicator away from Today", async ({ page }) => {
   await expect(page).toHaveURL(/\/today$/);
   await expect(dock).toHaveCount(0);
   await page
-    .getByRole("button", { name: "Start Portfolio project", exact: true })
+    .getByRole("button", { name: "Start Learning", exact: true })
     .click();
   await expect(page.locator(".active-timers-card li")).toHaveCount(2);
   await page
@@ -795,10 +790,10 @@ test("shows concurrent sessions in the active card and pauses them", async ({
     card.getByText("No timers running", { exact: true }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Start Morning walk", exact: true })
+    .getByRole("button", { name: "Start Focus time", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Start Portfolio project", exact: true })
+    .getByRole("button", { name: "Start Learning", exact: true })
     .click();
   await expect(card.locator("li")).toHaveCount(2);
   await expect(
@@ -814,16 +809,16 @@ test("shows concurrent sessions in the active card and pauses them", async ({
   await expect(duration).not.toHaveText(before!);
   await card
     .getByRole("button", {
-      name: "Pause active timer Morning walk",
+      name: "Pause active timer Focus time",
       exact: true,
     })
     .click();
   await expect(card.locator("li")).toHaveCount(1);
   await expect(
-    page.getByRole("button", { name: "Start Morning walk", exact: true }),
+    page.getByRole("button", { name: "Start Focus time", exact: true }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Start Morning walk", exact: true })
+    .getByRole("button", { name: "Start Focus time", exact: true })
     .click();
   await card.getByRole("button", { name: "Pause all", exact: true }).click();
   const confirmation = page.getByRole("dialog", {
@@ -863,13 +858,13 @@ test("centers the reached-limit confirmation and continues only by choice", asyn
   await page.getByRole("button", { name: "Add time", exact: true }).click();
   const entry = page.getByRole("dialog");
   await entry.getByRole("combobox").click();
-  await page.getByRole("option", { name: "Watch list", exact: true }).click();
+  await page.getByRole("option", { name: "Screen time", exact: true }).click();
   await entry.getByLabel("Hours", { exact: true }).fill("2");
   await entry.getByLabel("Minutes", { exact: true }).fill("0");
   await entry.getByRole("button", { name: "Add time", exact: true }).click();
   await page.getByRole("link", { name: "Today", exact: true }).first().click();
   const trigger = page.getByRole("button", {
-    name: "Continue Watch list",
+    name: "Continue Screen time",
     exact: true,
   });
   for (const theme of ["light", "dark"]) {
@@ -879,7 +874,7 @@ test("centers the reached-limit confirmation and continues only by choice", asyn
     );
     await trigger.click();
     const dialog = page.getByRole("dialog", {
-      name: "Continue Watch list?",
+      name: "Continue Screen time?",
       exact: true,
     });
     await expect(
@@ -937,7 +932,7 @@ test("centers the reached-limit confirmation and continues only by choice", asyn
   await expect(page.getByRole("dialog")).toBeHidden();
   const running = page
     .locator(".active-timers-list li")
-    .filter({ hasText: "Watch list" });
+    .filter({ hasText: "Screen time" });
   await expect(running.locator(".active-timer-duration")).toHaveText(
     /^−\d{2}:\d{2}:\d{2}$/,
   );
@@ -953,12 +948,12 @@ test("centers the reached-limit confirmation and continues only by choice", asyn
     page
       .locator(".task-card")
       .filter({
-        has: page.getByRole("heading", { name: "Watch list", exact: true }),
+        has: page.getByRole("heading", { name: "Screen time", exact: true }),
       })
       .locator(".task-time strong"),
   ).toHaveText(/^−\d{2}:\d{2}:\d{2}$/);
   await page
-    .getByRole("button", { name: "Pause Watch list", exact: true })
+    .getByRole("button", { name: "Pause Screen time", exact: true })
     .click();
   await page
     .getByRole("link", { name: "Calendar", exact: true })
@@ -966,7 +961,7 @@ test("centers the reached-limit confirmation and continues only by choice", asyn
     .click();
   const extra = page
     .locator(".history-entry")
-    .filter({ hasText: "Watch list" })
+    .filter({ hasText: "Screen time" })
     .filter({ has: page.locator(".negative-duration") });
   await expect(extra).toHaveCount(1);
   await expect(extra).not.toContainText("Over limit");
@@ -1002,7 +997,7 @@ test("gives shared task actions a subtle hover lift", async ({
 }, testInfo) => {
   await page.getByRole("button", { name: "Task list", exact: true }).click();
   const edit = page.getByRole("button", {
-    name: "Edit saved task Morning walk",
+    name: "Edit saved task Focus time",
   });
   await edit.hover();
   const styles = await edit.evaluate((element) => {
@@ -1024,7 +1019,7 @@ test("gives shared task actions a subtle hover lift", async ({
 
 test("warns before closing a tab with a running timer", async ({ page }) => {
   await page
-    .getByRole("button", { name: "Start Morning walk", exact: true })
+    .getByRole("button", { name: "Start Focus time", exact: true })
     .click();
   const canceledCloseWarning = page.waitForEvent("dialog");
   await page.close({ runBeforeUnload: true });
@@ -1033,7 +1028,7 @@ test("warns before closing a tab with a running timer", async ({ page }) => {
   await warning.dismiss();
   expect(page.isClosed()).toBe(false);
   await expect(
-    page.getByRole("button", { name: "Pause Morning walk", exact: true }),
+    page.getByRole("button", { name: "Pause Focus time", exact: true }),
   ).toBeVisible();
   const acceptedCloseWarning = page.waitForEvent("dialog");
   await page.close({ runBeforeUnload: true });
@@ -1046,7 +1041,7 @@ test("warns on reload while timers run and leaves internal navigation uninterrup
   page,
 }) => {
   await page
-    .getByRole("button", { name: "Start Morning walk", exact: true })
+    .getByRole("button", { name: "Start Focus time", exact: true })
     .click();
   const warning = page.waitForEvent("dialog");
   // A canceled reload may never reach Playwright's requested load state.
@@ -1056,7 +1051,7 @@ test("warns on reload while timers run and leaves internal navigation uninterrup
   await dialog.dismiss();
   await canceledReload;
   await expect(
-    page.getByRole("button", { name: "Pause Morning walk", exact: true }),
+    page.getByRole("button", { name: "Pause Focus time", exact: true }),
   ).toBeVisible();
 
   const unexpectedDialogs: string[] = [];
@@ -1074,24 +1069,24 @@ test("warns on reload while timers run and leaves internal navigation uninterrup
   await expect(page).toHaveURL(/\/calendar$/);
   await page.getByRole("link", { name: "Today", exact: true }).first().click();
   await page
-    .getByRole("button", { name: "Pause Morning walk", exact: true })
+    .getByRole("button", { name: "Pause Focus time", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "Start Morning walk", exact: true }),
+    page.getByRole("button", { name: "Start Focus time", exact: true }),
   ).toBeVisible();
   await page.reload();
   expect(unexpectedDialogs).toEqual([]);
   page.off("dialog", rejectUnexpected);
 
   await page
-    .getByRole("button", { name: "Start Morning walk", exact: true })
+    .getByRole("button", { name: "Start Focus time", exact: true })
     .click();
   const acceptedWarning = page.waitForEvent("dialog");
   const acceptedReload = page.reload();
   await (await acceptedWarning).accept();
   await acceptedReload;
   await expect(
-    page.getByRole("heading", { name: "Morning walk", exact: true }),
+    page.getByRole("heading", { name: "Focus time", exact: true }),
   ).toBeVisible();
 });
 
@@ -1100,10 +1095,10 @@ test("shows aligned task actions and dismisses with Escape or an outside click",
 }, testInfo) => {
   await page.setViewportSize({ width: 320, height: 800 });
   const trigger = page.getByRole("button", {
-    name: "Actions for Morning walk",
+    name: "Actions for Focus time",
   });
   const actions = page.getByRole("group", {
-    name: "Task actions for Morning walk",
+    name: "Task actions for Focus time",
   });
   for (const theme of ["light", "dark"]) {
     await page.evaluate((value) => {
@@ -1136,7 +1131,7 @@ test("shows aligned task actions and dismisses with Escape or an outside click",
     await expect(trigger).toBeFocused();
     await trigger.click();
     await page
-      .getByRole("heading", { name: "Morning walk", exact: true })
+      .getByRole("heading", { name: "Focus time", exact: true })
       .click();
     await expect(actions).toBeHidden();
   }
@@ -1146,7 +1141,7 @@ test("shares today's editor, preserves daily choices, and uses defaults tomorrow
   page,
 }) => {
   const target = page.getByRole("button", {
-    name: "Edit today’s allotment for Morning walk",
+    name: "Edit today’s allotment for Focus time",
   });
   await target.click();
   let editor = page.getByRole("dialog", { name: "Edit task", exact: true });
@@ -1154,7 +1149,7 @@ test("shares today's editor, preserves daily choices, and uses defaults tomorrow
   await editor.getByLabel("Minutes", { exact: true }).fill("20");
   await editor.getByRole("button", { name: "Save changes" }).click();
   await expect(target).toHaveText("of 20m");
-  await page.getByRole("button", { name: "Actions for Morning walk" }).click();
+  await page.getByRole("button", { name: "Actions for Focus time" }).click();
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   editor = page.getByRole("dialog", { name: "Edit task", exact: true });
   await expect(editor.getByLabel("Minutes", { exact: true })).toHaveValue("20");
@@ -1168,7 +1163,7 @@ test("shares today's editor, preserves daily choices, and uses defaults tomorrow
   await page.getByRole("button", { name: "Task list", exact: true }).click();
   const library = page.getByRole("dialog", { name: "Task list", exact: true });
   await library
-    .getByRole("button", { name: "Edit saved task Morning walk" })
+    .getByRole("button", { name: "Edit saved task Focus time" })
     .click();
   editor = page.getByRole("dialog", { name: "Edit task", exact: true });
   await expect(
@@ -1195,15 +1190,15 @@ test("warns before lowering a running limit and retains tracked time", async ({
   await page.getByRole("button", { name: "Add time", exact: true }).click();
   const entry = page.getByRole("dialog");
   await entry.getByRole("combobox").click();
-  await page.getByRole("option", { name: "Watch list", exact: true }).click();
+  await page.getByRole("option", { name: "Screen time", exact: true }).click();
   await entry.getByLabel("Hours", { exact: true }).fill("0");
   await entry.getByLabel("Minutes", { exact: true }).fill("10");
   await entry.getByRole("button", { name: "Add time", exact: true }).click();
   await page.getByRole("link", { name: "Today", exact: true }).first().click();
-  await page.getByRole("button", { name: "Start Watch list" }).click();
+  await page.getByRole("button", { name: "Start Screen time" }).click();
   await page.waitForTimeout(1100);
   await page
-    .getByRole("button", { name: "Edit today’s allotment for Watch list" })
+    .getByRole("button", { name: "Edit today’s allotment for Screen time" })
     .click();
   const editor = page.getByRole("dialog", { name: "Edit task", exact: true });
   await editor.getByLabel("Hours", { exact: true }).fill("0");
@@ -1215,21 +1210,21 @@ test("warns before lowering a running limit and retains tracked time", async ({
     .check();
   await editor.getByRole("button", { name: "Save changes" }).click();
   await expect(
-    page.getByRole("button", { name: "Pause Watch list" }),
+    page.getByRole("button", { name: "Pause Screen time" }),
   ).toBeHidden();
   await expect(
-    page.getByRole("button", { name: "Continue Watch list" }),
+    page.getByRole("button", { name: "Continue Screen time" }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Edit today’s allotment for Watch list" })
+    .getByRole("button", { name: "Edit today’s allotment for Screen time" })
     .click();
   await editor.getByLabel("Minutes", { exact: true }).fill("30");
   await editor.getByRole("button", { name: "Save changes" }).click();
   await expect(
-    page.getByRole("button", { name: "Start Watch list" }),
+    page.getByRole("button", { name: "Start Screen time" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Pause Watch list" }),
+    page.getByRole("button", { name: "Pause Screen time" }),
   ).toBeHidden();
   await page
     .getByRole("link", { name: "Calendar", exact: true })
@@ -1237,7 +1232,7 @@ test("warns before lowering a running limit and retains tracked time", async ({
     .click();
   const history = page
     .locator(".history-entry")
-    .filter({ has: page.getByRole("heading", { name: "Watch list" }) });
+    .filter({ has: page.getByRole("heading", { name: "Screen time" }) });
   await expect(history).toHaveCount(2);
   await expect(history.filter({ hasText: "Manual addition" })).toContainText(
     "10m",
@@ -1250,7 +1245,7 @@ test("warns before lowering a running limit and retains tracked time", async ({
 test("can adjust a reused task and fits today's editor at 320px in both themes", async ({
   page,
 }, testInfo) => {
-  await page.getByRole("button", { name: "Actions for Morning walk" }).click();
+  await page.getByRole("button", { name: "Actions for Focus time" }).click();
   await page.getByRole("button", { name: "Remove", exact: true }).click();
   await page
     .getByRole("dialog")
@@ -1260,16 +1255,16 @@ test("can adjust a reused task and fits today's editor at 320px in both themes",
   const picker = page.getByRole("dialog");
   await picker.getByRole("button", { name: "From task list" }).click();
   await picker
-    .getByRole("button", { name: "Adjust allotment for Morning walk" })
+    .getByRole("button", { name: "Adjust allotment for Focus time" })
     .click();
   await picker
     .getByLabel("Today’s allotment in minutes", { exact: true })
     .fill("20");
   await picker
-    .getByRole("button", { name: "Add Morning walk to daily list" })
+    .getByRole("button", { name: "Add Focus time to daily list" })
     .click();
   const target = page.getByRole("button", {
-    name: "Edit today’s allotment for Morning walk",
+    name: "Edit today’s allotment for Focus time",
   });
   await expect(target).toHaveText("of 20m");
   await page.setViewportSize({ width: 320, height: 800 });
@@ -1367,9 +1362,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/today");
   await page.waitForTimeout(300);
   expect(pageErrors, pageErrors.join("\n")).toEqual([]);
-  await expect(
-    page.getByRole("heading", { name: "Morning walk" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Focus time" })).toBeVisible();
   await expect(
     page.getByRole("button", { name: /\d+-day streak/i }),
   ).toBeVisible();
@@ -1436,8 +1429,8 @@ test("reveals weekly saver rules from the compact shield", async ({
 test("tracks concurrent tasks and writes duration history", async ({
   page,
 }) => {
-  await page.getByRole("button", { name: "Start Morning walk" }).click();
-  await page.getByRole("button", { name: "Start Portfolio project" }).click();
+  await page.getByRole("button", { name: "Start Focus time" }).click();
+  await page.getByRole("button", { name: "Start Learning" }).click();
   await expect(page.locator(".active-timers-card li")).toHaveCount(2);
   await page.waitForTimeout(1100);
   await page.getByRole("button", { name: "Pause all" }).click();
@@ -1448,32 +1441,28 @@ test("tracks concurrent tasks and writes duration history", async ({
   await expect(page.locator(".active-timers-card li")).toHaveCount(0);
 
   await page.getByRole("link", { name: "Calendar" }).first().click();
-  await expect(
-    page.getByRole("heading", { name: "Morning walk" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Portfolio project" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Focus time" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Learning" })).toBeVisible();
 });
 
 test("reverts a timer correction to restore streak eligibility", async ({
   page,
 }, testInfo) => {
   test.setTimeout(60_000);
-  await page.getByRole("button", { name: "Start Morning walk" }).click();
+  await page.getByRole("button", { name: "Start Focus time" }).click();
   await page.waitForTimeout(1100);
-  await page.getByRole("button", { name: "Pause Morning walk" }).click();
+  await page.getByRole("button", { name: "Pause Focus time" }).click();
   await page.getByRole("link", { name: "Calendar" }).first().click();
 
   await page
-    .getByRole("button", { name: "Entry actions for Morning walk" })
+    .getByRole("button", { name: "Entry actions for Focus time" })
     .click();
   await page.getByRole("menuitem", { name: "Edit entry", exact: true }).click();
   await page.getByLabel("Hours").fill("1");
   await page.getByLabel("Minutes").fill("0");
   await page.getByRole("button", { name: "Save correction" }).click();
   await expect(
-    page.getByRole("button", { name: "Entry actions for Morning walk" }),
+    page.getByRole("button", { name: "Entry actions for Focus time" }),
   ).toBeFocused();
 
   await expect(page.getByText("Timer · corrected")).toBeVisible();
@@ -1492,7 +1481,7 @@ test("reverts a timer correction to restore streak eligibility", async ({
         ),
       ).toBe(true);
       const actions = page.getByRole("button", {
-        name: "Entry actions for Morning walk",
+        name: "Entry actions for Focus time",
       });
       await actions.click();
       await expect(
@@ -1513,7 +1502,7 @@ test("reverts a timer correction to restore streak eligibility", async ({
     }
   }
   await page
-    .getByRole("button", { name: "Entry actions for Morning walk" })
+    .getByRole("button", { name: "Entry actions for Focus time" })
     .click();
   await page
     .getByRole("menuitem", { name: "Restore original time", exact: true })
@@ -1524,7 +1513,7 @@ test("reverts a timer correction to restore streak eligibility", async ({
     page.getByRole("menuitem", { name: "Restore original time", exact: true }),
   ).toBeHidden();
   const actions = page.getByRole("button", {
-    name: "Entry actions for Morning walk",
+    name: "Entry actions for Focus time",
   });
   await actions.click();
   await page
@@ -1548,10 +1537,10 @@ test("reverts a timer correction to restore streak eligibility", async ({
 });
 
 test("offers a button alternative to drag reordering", async ({ page }) => {
-  await page.getByRole("button", { name: "Actions for Morning walk" }).click();
+  await page.getByRole("button", { name: "Actions for Focus time" }).click();
   await page.getByRole("button", { name: "Move down" }).click();
   const names = await page.locator(".task-card h3").allTextContents();
-  expect(names.slice(0, 2)).toEqual(["Portfolio project", "Morning walk"]);
+  expect(names.slice(0, 2)).toEqual(["Learning", "Focus time"]);
 });
 
 test("has no serious automated accessibility violations", async ({ page }) => {
@@ -1658,9 +1647,9 @@ test("adds a task with a compact keyboard intention control and expanded colors"
 test("removes and reuses a daily task while carrying choices into tomorrow", async ({
   page,
 }) => {
-  await page.getByRole("button", { name: "Start Morning walk" }).click();
+  await page.getByRole("button", { name: "Start Focus time" }).click();
   await page.waitForTimeout(1100);
-  await page.getByRole("button", { name: "Actions for Morning walk" }).click();
+  await page.getByRole("button", { name: "Actions for Focus time" }).click();
   await expect(
     page.getByRole("button", { name: "Archive", exact: true }),
   ).toBeHidden();
@@ -1671,56 +1660,42 @@ test("removes and reuses a daily task while carrying choices into tomorrow", asy
   ).toBeFocused();
   await confirmation.getByRole("button", { name: "Cancel" }).click();
   await expect(
-    page.getByRole("button", { name: "Pause Morning walk" }),
+    page.getByRole("button", { name: "Pause Focus time" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Actions for Morning walk" }).click();
+  await page.getByRole("button", { name: "Actions for Focus time" }).click();
   await page.getByRole("button", { name: "Remove", exact: true }).click();
   confirmation = page.getByRole("dialog");
   await confirmation.getByRole("button", { name: "Remove task" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Morning walk" }),
-  ).toBeHidden();
+  await expect(page.getByRole("heading", { name: "Focus time" })).toBeHidden();
   await expect(page.getByRole("button", { name: "Pause all" })).toBeHidden();
   await page
     .getByRole("link", { name: "Calendar", exact: true })
     .first()
     .click();
-  await expect(
-    page.getByRole("heading", { name: "Morning walk" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Focus time" })).toBeVisible();
   await page.getByRole("link", { name: "Today", exact: true }).first().click();
   await expect(page).toHaveURL(/\/today$/);
   await page.reload();
-  await expect(
-    page.getByRole("heading", { name: "Portfolio project" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Morning walk" }),
-  ).toBeHidden();
+  await expect(page.getByRole("heading", { name: "Learning" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Focus time" })).toBeHidden();
   // Choices are persistent, not reset by the local day boundary.
   await page.clock.install();
   await page.clock.setFixedTime(new Date(Date.now() + 24 * 60 * 60 * 1000));
-  await expect(
-    page.getByRole("heading", { name: "Morning walk" }),
-  ).toBeHidden();
-  await expect(
-    page.getByRole("heading", { name: "Portfolio project" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Focus time" })).toBeHidden();
+  await expect(page.getByRole("heading", { name: "Learning" })).toBeVisible();
   await page.getByRole("button", { name: "Add task", exact: true }).click();
   const picker = page.getByRole("dialog");
   await picker.getByRole("button", { name: "From task list" }).click();
   await expect(
     picker.getByRole("button", {
-      name: "Portfolio project is already on your daily list",
+      name: "Learning is already on your daily list",
     }),
   ).toBeDisabled();
   await picker
-    .getByRole("button", { name: "Add Morning walk to daily list" })
+    .getByRole("button", { name: "Add Focus time to daily list" })
     .click();
   await expect(picker).toBeHidden();
-  await expect(
-    page.getByRole("heading", { name: "Morning walk" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Focus time" })).toBeVisible();
   const taskCount = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve) => {
       const request = indexedDB.open("timeeight");
@@ -1740,33 +1715,33 @@ test("removes and reuses a daily task while carrying choices into tomorrow", asy
 test("archives with confirmation and restores saved tasks without losing history", async ({
   page,
 }, testInfo) => {
-  await page.getByRole("button", { name: "Start Morning walk" }).click();
+  await page.getByRole("button", { name: "Start Focus time" }).click();
   await page.waitForTimeout(1100);
   await page.getByRole("button", { name: "Task list", exact: true }).click();
   const library = page.getByRole("dialog", { name: "Task list", exact: true });
   await library
-    .getByRole("button", { name: "Archive Morning walk", exact: true })
+    .getByRole("button", { name: "Archive Focus time", exact: true })
     .click();
   const confirmation = page.getByRole("dialog", {
-    name: "Archive Morning walk?",
+    name: "Archive Focus time?",
     exact: true,
   });
   await expect(confirmation).toContainText("elapsed time will be saved");
   await confirmation.getByRole("button", { name: "Cancel" }).click();
   await expect(
-    library.getByRole("button", { name: "Archive Morning walk" }),
+    library.getByRole("button", { name: "Archive Focus time" }),
   ).toBeVisible();
-  await library.getByRole("button", { name: "Archive Morning walk" }).click();
+  await library.getByRole("button", { name: "Archive Focus time" }).click();
   await page
-    .getByRole("dialog", { name: "Archive Morning walk?", exact: true })
+    .getByRole("dialog", { name: "Archive Focus time?", exact: true })
     .getByRole("button", { name: "Archive task" })
     .click();
   await expect(
-    library.getByRole("button", { name: "Archive Morning walk" }),
+    library.getByRole("button", { name: "Archive Focus time" }),
   ).toBeHidden();
   await library.getByRole("button", { name: "Archived", exact: true }).click();
   await expect(
-    library.getByRole("button", { name: "Restore Morning walk" }),
+    library.getByRole("button", { name: "Restore Focus time" }),
   ).toBeVisible();
   const report = await new AxeBuilder({ page })
     .include(".task-dialog")
@@ -1776,21 +1751,17 @@ test("archives with confirmation and restores saved tasks without losing history
     body: await library.screenshot(),
     contentType: "image/png",
   });
-  await library.getByRole("button", { name: "Restore Morning walk" }).click();
+  await library.getByRole("button", { name: "Restore Focus time" }).click();
   await library.getByRole("button", { name: "Saved", exact: true }).click();
   await expect(
-    library.getByRole("button", { name: "Archive Morning walk" }),
+    library.getByRole("button", { name: "Archive Focus time" }),
   ).toBeVisible();
   await library.getByRole("button", { name: "Close task list" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Morning walk" }),
-  ).toBeHidden();
+  await expect(page.getByRole("heading", { name: "Focus time" })).toBeHidden();
   await expect(page.getByRole("button", { name: "Pause all" })).toBeHidden();
   await page
     .getByRole("link", { name: "Calendar", exact: true })
     .first()
     .click();
-  await expect(
-    page.getByRole("heading", { name: "Morning walk" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Focus time" })).toBeVisible();
 });

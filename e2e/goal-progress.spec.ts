@@ -7,13 +7,13 @@ test("caps manual and corrected limit time in daily progress after reload", asyn
   await page.getByRole("button", { name: "Add time", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("combobox").click();
-  await page.getByRole("option", { name: "Watch list", exact: true }).click();
+  await page.getByRole("option", { name: "Screen time", exact: true }).click();
   await dialog.getByLabel("Hours", { exact: true }).fill("2");
   await dialog.getByLabel("Minutes", { exact: true }).fill("0");
   await dialog.getByRole("button", { name: "Add time", exact: true }).click();
   await expect(page.locator(".day-total strong")).toHaveText("2h 0m");
   await page
-    .getByRole("button", { name: "Entry actions for Watch list" })
+    .getByRole("button", { name: "Entry actions for Screen time" })
     .click();
   await page.getByRole("menuitem", { name: "Edit entry", exact: true }).click();
   await dialog.getByLabel("Hours", { exact: true }).fill("4");
