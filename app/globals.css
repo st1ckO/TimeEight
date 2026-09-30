@@ -2847,6 +2847,26 @@ h3 {
   color: var(--ink);
   box-shadow: var(--shadow);
 }
+.landing-signin .auth-card {
+  --canvas: #24382e;
+  --surface: #1b2d24;
+  --surface-strong: #ffffff;
+  --ink: #f3f8f5;
+  --muted: #b5c2ba;
+  --line: #3a5144;
+  --teal: #75d8bc;
+  border-color: rgba(151, 181, 165, 0.26);
+  background:
+    linear-gradient(145deg, rgba(117, 216, 188, 0.08), transparent 56%),
+    var(--surface);
+  box-shadow: 0 24px 64px rgba(4, 14, 9, 0.24);
+}
+.landing-signin .auth-card .eyebrow {
+  color: #8ad2bd;
+}
+.landing-signin .auth-form input {
+  color: #17211d;
+}
 .auth-card-header {
   margin-bottom: 26px;
 }
