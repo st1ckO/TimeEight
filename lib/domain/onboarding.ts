@@ -3,6 +3,7 @@ import type { Profile } from "./types";
 export function shouldSeedExampleTasks(
   profile: Pick<Profile, "onboardingCompleted">,
   taskCount: number,
+  isLocalDemo = false,
 ) {
-  return !profile.onboardingCompleted && taskCount === 0;
+  return taskCount === 0 && (isLocalDemo || !profile.onboardingCompleted);
 }

@@ -44,7 +44,7 @@ test("keeps the three example timers selected during onboarding", async ({
   await page.getByRole("button", { name: "Open my day" }).click();
 
   await expect(page).toHaveURL(/\/today$/);
-  for (const name of ["Morning walk", "Portfolio project", "Watch list"]) {
+  for (const name of ["Focus time", "Learning", "Screen time"]) {
     await expect(
       page.getByRole("button", { name: `Start ${name}`, exact: true }),
     ).toBeVisible();

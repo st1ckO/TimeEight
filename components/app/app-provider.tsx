@@ -191,7 +191,7 @@ function seedTasks(userId: string): Task[] {
     {
       id: newId(),
       userId,
-      name: "Morning walk",
+      name: "Focus time",
       color: palette[0]!,
       goalKind: "minimum",
       targetSeconds: 3600,
@@ -202,7 +202,7 @@ function seedTasks(userId: string): Task[] {
     {
       id: newId(),
       userId,
-      name: "Portfolio project",
+      name: "Learning",
       color: palette[1]!,
       goalKind: "minimum",
       targetSeconds: 10_800,
@@ -213,7 +213,7 @@ function seedTasks(userId: string): Task[] {
     {
       id: newId(),
       userId,
-      name: "Watch list",
+      name: "Screen time",
       color: palette[2]!,
       goalKind: "limit",
       targetSeconds: 3600,
@@ -489,7 +489,13 @@ export function AppProvider({
           await queue(userId, "goal-upsert", { ...goal });
         }
       }
-      if (shouldSeedExampleTasks(storedProfile, storedTasks.length)) {
+      if (
+        shouldSeedExampleTasks(
+          storedProfile,
+          storedTasks.length,
+          userId === "local-demo",
+        )
+      ) {
         storedTasks = seedTasks(userId);
         for (const task of storedTasks)
           await queue(

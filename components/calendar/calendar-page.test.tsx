@@ -58,7 +58,7 @@ describe("CalendarPage corrections", () => {
         {
           id: "task-1",
           userId: "user-1",
-          name: "Morning walk",
+          name: "Focus time",
           color: "#197c67",
           goalKind: "minimum",
           targetSeconds: 3_600,
@@ -98,13 +98,13 @@ describe("CalendarPage corrections", () => {
 
     await user.click(
       screen.getAllByRole("button", {
-        name: "Entry actions for Morning walk",
+        name: "Entry actions for Focus time",
       })[0]!,
     );
     const revert = screen.getByRole("menuitem", {
       name: "Restore original time",
     });
-    expect(screen.getAllByText("Morning walk")).toHaveLength(2);
+    expect(screen.getAllByText("Focus time")).toHaveLength(2);
     expect(screen.getAllByText("Manual addition")).toHaveLength(1);
 
     await user.click(revert);
@@ -171,7 +171,7 @@ describe("CalendarPage corrections", () => {
       expect(row.querySelectorAll("button")).toHaveLength(1);
     await user.click(
       screen.getAllByRole("button", {
-        name: "Entry actions for Morning walk",
+        name: "Entry actions for Focus time",
       })[1]!,
     );
     expect(
@@ -185,7 +185,7 @@ describe("CalendarPage corrections", () => {
     expect(deleteEntry).not.toHaveBeenCalled();
     await user.click(
       screen.getAllByRole("button", {
-        name: "Entry actions for Morning walk",
+        name: "Entry actions for Focus time",
       })[1]!,
     );
     await user.click(screen.getByRole("menuitem", { name: "Delete entry" }));
