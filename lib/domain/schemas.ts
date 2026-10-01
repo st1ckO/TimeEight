@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { DISPLAY_NAME_MAX_LENGTH } from "./profile";
 import { DAILY_GOAL_SECONDS } from "./time";
 
 const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 const hexColor = /^#[0-9a-fA-F]{6}$/;
 
 export const profileSchema = z.object({
-  displayName: z.string().trim().max(80),
+  displayName: z.string().trim().max(DISPLAY_NAME_MAX_LENGTH),
   timezone: z
     .string()
     .trim()

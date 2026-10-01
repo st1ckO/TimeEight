@@ -8,6 +8,8 @@ import { ImportBackupDialog } from "@/components/settings/import-backup-dialog";
 import { DeleteAccountDialog } from "@/components/settings/delete-account-dialog";
 import { TimezonePicker } from "@/components/settings/timezone-picker";
 import { useTimeEight } from "@/components/app/app-provider";
+import { DISPLAY_NAME_MAX_LENGTH } from "@/lib/domain/profile";
+import { profileSchema } from "@/lib/domain/schemas";
 import type { ThemePreference } from "@/lib/domain/types";
 import { clearLocalUser } from "@/lib/offline/db";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -73,6 +75,8 @@ const timezoneRegions = [
 
 export function SettingsPage() {
   const app = useTimeEight();
+  const displayNameId = useId();
+  const displayNameHintId = useId();
   const timezoneLabelId = useId();
   const deviceTimezone =
     app.now > 0 ? Intl.DateTimeFormat().resolvedOptions().timeZone : "";
@@ -136,11 +140,22 @@ export function SettingsPage() {
   async function save(event: React.FormEvent) {
     event.preventDefault();
     if (!hasChanges || saving) return;
+    const profile = profileSchema.safeParse({
+      displayName: name,
+      timezone,
+      theme,
+    });
+    if (!profile.success) {
+      setMessage(
+        `Display name must be ${DISPLAY_NAME_MAX_LENGTH} characters or fewer.`,
+      );
+      return;
+    }
     setSaving(true);
     setMessage(null);
     setSaved(false);
     try {
-      await app.updateProfile({ displayName: name, timezone, theme });
+      await app.updateProfile(profile.data);
       document.documentElement.dataset.theme = theme === "system" ? "" : theme;
       setNameOverride(null);
       setTimezoneOverride(null);
@@ -210,9 +225,11 @@ export function SettingsPage() {
       </header>
       <div className="settings-grid">
         <form className="settings-card settings-form" onSubmit={save}>
-          <label>
-            Display name
+          <div className="settings-field">
+            <label htmlFor={displayNameId}>Display name</label>
             <input
+              id={displayNameId}
+              aria-describedby={displayNameHintId}
               value={name}
               disabled={saving}
               onChange={(event) => {
@@ -220,9 +237,12 @@ export function SettingsPage() {
                 setMessage(null);
                 setSaved(false);
               }}
-              maxLength={80}
+              maxLength={DISPLAY_NAME_MAX_LENGTH}
             />
-          </label>
+            <small id={displayNameHintId}>
+              Up to {DISPLAY_NAME_MAX_LENGTH} characters.
+            </small>
+          </div>
           <div className="entry-task-field">
             <span id={timezoneLabelId}>Timezone</span>
             <TimezonePicker

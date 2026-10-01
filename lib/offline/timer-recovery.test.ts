@@ -6,6 +6,7 @@ import {
   mergeEntriesById,
   planTimerRecovery,
   remoteTimersNeedingRecovery,
+  timerEntryIdentity,
 } from "./timer-recovery";
 
 const timer: ActiveTimer = {
@@ -44,6 +45,10 @@ describe("checkpoint timer recovery", () => {
     expect(newerCheckpoint.entries.map((entry) => entry.id)).toEqual(
       first.entries.map((entry) => entry.id),
     );
+    expect(timerEntryIdentity(timer, first.entries[0]!.localDate)).toEqual({
+      id: first.entries[0]!.id,
+      mutationId: first.entries[0]!.mutationId,
+    });
   });
 
   it("splits recovered time across local midnight without changing the total", () => {

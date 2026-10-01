@@ -64,6 +64,50 @@ async function dbTimezone(userId: string) {
   return (await getLocalDatabase()?.profiles.get(userId))?.timezone ?? "UTC";
 }
 
+function referencedTaskIds(mutation: PendingMutation) {
+  const payload = mutation.payload;
+  switch (mutation.kind) {
+    case "task-upsert":
+    case "entry-delete":
+    case "profile-update":
+    case "goal-upsert":
+      return [];
+    case "task-archive":
+    case "task-list-state":
+    case "task-settings-update":
+      return [payload.id as string];
+    case "task-target-snapshot":
+    case "task-target-upsert":
+    case "timer-start":
+    case "entry-upsert":
+      return [payload.taskId as string];
+    case "timer-stop":
+      return Array.isArray(payload.entries)
+        ? (payload.entries as Record<string, unknown>[])
+            .map((entry) => entry.taskId)
+            .filter((taskId): taskId is string => typeof taskId === "string")
+        : [];
+  }
+}
+
+function orderTaskDependencies(pending: PendingMutation[]) {
+  const ordered = [...pending];
+  for (let index = 0; index < ordered.length; index += 1) {
+    const taskIds = new Set(referencedTaskIds(ordered[index]!));
+    if (taskIds.size === 0) continue;
+    const taskIndex = ordered.findIndex(
+      (candidate, candidateIndex) =>
+        candidateIndex > index &&
+        candidate.kind === "task-upsert" &&
+        taskIds.has(candidate.payload.id as string),
+    );
+    if (taskIndex < 0) continue;
+    const [task] = ordered.splice(taskIndex, 1);
+    ordered.splice(index, 0, task!);
+  }
+  return ordered;
+}
+
 async function applyMutation(
   client: SupabaseClient<Database>,
   mutation: PendingMutation,
@@ -139,16 +183,10 @@ async function applyMutation(
       });
     case "timer-stop": {
       const entries = payload.entries as Record<string, unknown>[];
-      if (entries.length > 0) {
-        const inserted = await client
-          .from("time_entries")
-          .upsert(entries.map(toEntryRow));
-        if (inserted.error) return inserted;
-      }
-      return client
-        .from("active_timers")
-        .delete()
-        .eq("id", payload.timerId as string);
+      return client.rpc("stop_active_timer", {
+        p_timer_id: payload.timerId as string,
+        p_entries: entries.map(toEntryRow),
+      });
     }
     case "entry-upsert":
       return client.from("time_entries").upsert(toEntryRow(payload));
@@ -184,30 +222,70 @@ async function applyMutation(
   }
 }
 
-async function syncPendingMutationsUnlocked(
-  userId: string,
-): Promise<{ synced: number; error?: string }> {
+async function syncPendingMutationsUnlocked(userId: string): Promise<{
+  synced: number;
+  error?: string;
+  supersededEntryIds?: string[];
+}> {
   const db = getLocalDatabase();
   if (!db || !navigator.onLine) return { synced: 0 };
   const client = createClient();
-  const pending = await db.pendingMutations
-    .where("userId")
-    .equals(userId)
-    .sortBy("createdAt");
+  const pending = orderTaskDependencies(
+    await db.pendingMutations
+      .where("userId")
+      .equals(userId)
+      .sortBy("createdAt"),
+  );
   let synced = 0;
+  const supersededEntryIds = new Set<string>();
 
   for (const mutation of pending) {
     let result;
     try {
       result = await applyMutation(client, mutation);
     } catch {
-      return { synced, error: "Queued change could not be applied" };
+      return {
+        synced,
+        error: "Queued change could not be applied",
+        ...(supersededEntryIds.size > 0
+          ? { supersededEntryIds: [...supersededEntryIds] }
+          : {}),
+      };
     }
-    if (result.error) return { synced, error: result.error.message };
+    if (result.error)
+      return {
+        synced,
+        error: result.error.message,
+        ...(supersededEntryIds.size > 0
+          ? { supersededEntryIds: [...supersededEntryIds] }
+          : {}),
+      };
+    if (
+      mutation.kind === "timer-stop" &&
+      "data" in result &&
+      result.data === false &&
+      Array.isArray(mutation.payload.entries)
+    ) {
+      for (const entry of mutation.payload.entries) {
+        if (
+          typeof entry === "object" &&
+          entry !== null &&
+          "id" in entry &&
+          typeof entry.id === "string"
+        ) {
+          supersededEntryIds.add(entry.id);
+        }
+      }
+    }
     await db.pendingMutations.delete(mutation.id);
     synced += 1;
   }
-  return { synced };
+  return {
+    synced,
+    ...(supersededEntryIds.size > 0
+      ? { supersededEntryIds: [...supersededEntryIds] }
+      : {}),
+  };
 }
 
 export async function syncPendingMutations(userId: string) {

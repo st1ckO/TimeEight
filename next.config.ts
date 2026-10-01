@@ -2,6 +2,15 @@ import type { NextConfig } from "next";
 import withSerwistInit from "@serwist/next";
 
 const development = process.env.NODE_ENV === "development";
+const privateRoutes = [
+  "/today",
+  "/calendar",
+  "/insights",
+  "/settings",
+  "/onboarding",
+  "/auth/:path*",
+  "/api/:path*",
+];
 
 const contentSecurityPolicy = [
   "default-src 'self'",
@@ -61,6 +70,15 @@ const nextConfig: NextConfig = {
             : []),
         ],
       },
+      ...privateRoutes.map((source) => ({
+        source,
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "private, no-store, max-age=0, must-revalidate",
+          },
+        ],
+      })),
     ];
   },
 };

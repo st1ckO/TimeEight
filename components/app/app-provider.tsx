@@ -34,12 +34,15 @@ import {
 } from "@/lib/domain/time";
 import { aggregateStreakEntries, calculateStreak } from "@/lib/domain/streak";
 import { aggregateGoalProgress } from "@/lib/domain/goal-progress";
+import { shouldSeedExampleTasks } from "@/lib/domain/onboarding";
+import { normalizeDisplayName } from "@/lib/domain/profile";
 import {
   overridesLimitOnDate,
   timerLimitStopAt,
 } from "@/lib/domain/timer-limits";
 import { useTimerLeaveWarning } from "./use-timer-leave-warning";
 import {
+  profileSchema,
   taskSchema,
   taskListStateSchema,
   taskDailyTargetSchema,
@@ -75,6 +78,7 @@ import {
   mergeEntriesById,
   planTimerRecovery,
   remoteTimersNeedingRecovery,
+  timerEntryIdentity,
 } from "@/lib/offline/timer-recovery";
 
 import {
@@ -106,6 +110,15 @@ interface EntryInput {
   durationSeconds: number;
 }
 
+export type SyncState = "local" | "synced" | "pending" | "offline" | "error";
+export type NoticeTone = "info" | "success" | "warning" | "error";
+
+export interface AppNotice {
+  id: string;
+  message: string;
+  tone: NoticeTone;
+}
+
 interface AppContextValue {
   userId: string;
   profile: LocalProfile;
@@ -117,8 +130,9 @@ interface AppContextValue {
   entries: TimeEntry[];
   now: number;
   hydrated: boolean;
-  syncState: "local" | "synced" | "pending" | "offline" | "error";
-  notice: string | null;
+  syncState: SyncState;
+  syncError: string | null;
+  notice: AppNotice | null;
   today: string;
   totals: Map<string, number>;
   goalTotals: Map<string, number>;
@@ -159,6 +173,14 @@ interface AppContextValue {
     theme: ThemePreference;
     onboardingCompleted?: boolean;
   }): Promise<void>;
+  completeOnboarding(
+    input: {
+      displayName: string;
+      timezone: string;
+      theme: ThemePreference;
+    },
+    keepExamples: boolean,
+  ): Promise<void>;
   clearUserData(): Promise<void>;
   restoreBackup(input: Backup): Promise<void>;
   dismissNotice(): void;
@@ -171,7 +193,7 @@ function seedTasks(userId: string): Task[] {
     {
       id: newId(),
       userId,
-      name: "Morning walk",
+      name: "Focus time",
       color: palette[0]!,
       goalKind: "minimum",
       targetSeconds: 3600,
@@ -182,7 +204,7 @@ function seedTasks(userId: string): Task[] {
     {
       id: newId(),
       userId,
-      name: "Portfolio project",
+      name: "Learning",
       color: palette[1]!,
       goalKind: "minimum",
       targetSeconds: 10_800,
@@ -193,7 +215,7 @@ function seedTasks(userId: string): Task[] {
     {
       id: newId(),
       userId,
-      name: "Watch list",
+      name: "Screen time",
       color: palette[2]!,
       goalKind: "limit",
       targetSeconds: 3600,
@@ -271,7 +293,8 @@ export function AppProvider({
   const [syncState, setSyncState] = useState<AppContextValue["syncState"]>(
     userId === "local-demo" ? "local" : "pending",
   );
-  const [notice, setNotice] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<AppNotice | null>(null);
   const activeRef = useRef(activeTimers);
   const restoringRef = useRef(false);
 
@@ -284,16 +307,35 @@ export function AppProvider({
       profile.theme === "system" ? "" : profile.theme;
   }, [profile.theme]);
 
+  const updateSyncStatus = useCallback(
+    (state: SyncState, error: string | null = null) => {
+      setSyncState(state);
+      setSyncError(state === "error" ? error : null);
+    },
+    [],
+  );
+
+  const showNotice = useCallback(
+    (message: string, tone: NoticeTone = "info") =>
+      setNotice({ id: newId(), message, tone }),
+    [],
+  );
+  const dismissNotice = useCallback(() => setNotice(null), []);
+
   const persistMutation = useCallback(
     async (kind: PendingMutation["kind"], payload: Record<string, unknown>) => {
       await queue(userId, kind, payload);
-      if (userId === "local-demo") return;
-      if (!navigator.onLine) return setSyncState("offline");
-      setSyncState("pending");
+      if (userId === "local-demo") return null;
+      if (!navigator.onLine) {
+        updateSyncStatus("offline");
+        return null;
+      }
+      updateSyncStatus("pending");
       const result = await syncPendingMutations(userId);
-      setSyncState(result.error ? "error" : "synced");
+      updateSyncStatus(result.error ? "error" : "synced", result.error ?? null);
+      return result;
     },
-    [userId],
+    [updateSyncStatus, userId],
   );
 
   useEffect(() => {
@@ -334,7 +376,7 @@ export function AppProvider({
         try {
           remoteBefore = await loadRemoteSnapshot(userId);
         } catch {
-          setSyncState("error");
+          updateSyncStatus("error", "Account data could not be loaded.");
         }
       }
 
@@ -370,8 +412,9 @@ export function AppProvider({
         );
         recoveredEntries.push(...recoveryPlan.entries);
         if (remoteTimer && remoteTimer.id !== timer.id) {
-          setNotice(
+          showNotice(
             "Time from an offline timer was recovered. The timer already active on another device remains active.",
+            "warning",
           );
         }
       }
@@ -384,12 +427,15 @@ export function AppProvider({
         null;
       if (onlineAccount) {
         const result = await syncPendingMutations(userId);
-        setSyncState(result.error ? "error" : "synced");
+        updateSyncStatus(
+          result.error ? "error" : "synced",
+          result.error ?? null,
+        );
         if (!result.error) {
           try {
             remoteAfter = await loadRemoteSnapshot(userId);
           } catch {
-            setSyncState("error");
+            updateSyncStatus("error", "Account data could not be refreshed.");
           }
         }
       }
@@ -401,6 +447,10 @@ export function AppProvider({
         storedTargets = remoteAfter.taskDailyTargets;
         storedEntries = remoteAfter.entries;
       }
+      storedProfile = {
+        ...storedProfile,
+        displayName: normalizeDisplayName(storedProfile.displayName),
+      };
       const latestRemote = remoteAfter ?? remoteBefore;
       const timersNeedingChoice = remoteTimersNeedingRecovery(
         latestRemote?.activeTimers ?? [],
@@ -445,7 +495,13 @@ export function AppProvider({
           await queue(userId, "goal-upsert", { ...goal });
         }
       }
-      if (storedTasks.length === 0 && !existingProfile && !remoteAfter) {
+      if (
+        shouldSeedExampleTasks(
+          storedProfile,
+          storedTasks.length,
+          userId === "local-demo",
+        )
+      ) {
         storedTasks = seedTasks(userId);
         for (const task of storedTasks)
           await queue(
@@ -511,12 +567,51 @@ export function AppProvider({
     return () => {
       cancelled = true;
     };
-  }, [initialAccountStart, initialProfile, userId]);
+  }, [
+    initialAccountStart,
+    initialProfile,
+    showNotice,
+    updateSyncStatus,
+    userId,
+  ]);
 
   useEffect(() => {
     const ticker = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(ticker);
   }, []);
+
+  const reconcileSupersededEntries = useCallback(
+    async (entryIds: string[] | undefined) => {
+      if (!entryIds?.length) return false;
+      try {
+        const snapshot = await loadRemoteSnapshot(userId);
+        const supersededIds = new Set(entryIds);
+        const db = getLocalDatabase();
+        if (db) {
+          await db.transaction("rw", db.timeEntries, async () => {
+            await db.timeEntries.bulkDelete(entryIds);
+            if (snapshot.entries.length > 0)
+              await db.timeEntries.bulkPut(snapshot.entries);
+          });
+        }
+        setEntries((current) =>
+          mergeEntriesById(
+            current.filter((entry) => !supersededIds.has(entry.id)),
+            snapshot.entries,
+          ),
+        );
+        return true;
+      } catch {
+        updateSyncStatus("error", "History could not be refreshed.");
+        showNotice(
+          "The timer was stopped on another device, but history could not be refreshed. Reload when you are online.",
+          "error",
+        );
+        return false;
+      }
+    },
+    [showNotice, updateSyncStatus, userId],
+  );
 
   const pauseTimer = useCallback(
     async (taskId: string, recovered = false, preserveElapsed = false) => {
@@ -578,21 +673,24 @@ export function AppProvider({
             ]
           : [];
       });
-      const newEntries: TimeEntry[] = slices.map((slice) => ({
-        id: newId(),
-        userId,
-        taskId,
-        localDate: slice.localDate,
-        durationSeconds: slice.durationSeconds,
-        source: recovered ? "recovered" : "timer",
-        startedAt: slice.startedAt,
-        endedAt: slice.endedAt,
-        manuallyAdjusted: false,
-        correctionOriginalTaskId: null,
-        correctionOriginalLocalDate: null,
-        correctionOriginalDurationSeconds: null,
-        mutationId: newId(),
-      }));
+      const newEntries: TimeEntry[] = slices.map((slice) => {
+        const identity = timerEntryIdentity(timer, slice.localDate);
+        return {
+          id: identity.id,
+          userId,
+          taskId,
+          localDate: slice.localDate,
+          durationSeconds: slice.durationSeconds,
+          source: recovered ? "recovered" : "timer",
+          startedAt: slice.startedAt,
+          endedAt: slice.endedAt,
+          manuallyAdjusted: false,
+          correctionOriginalTaskId: null,
+          correctionOriginalLocalDate: null,
+          correctionOriginalDurationSeconds: null,
+          mutationId: identity.mutationId,
+        };
+      });
       activeRef.current = activeRef.current.filter(
         (item) => item.id !== timer.id,
       );
@@ -610,12 +708,27 @@ export function AppProvider({
             await db.timeEntries.bulkPut(newEntries);
           },
         );
-      await persistMutation("timer-stop", {
+      const result = await persistMutation("timer-stop", {
         timerId: timer.id,
         entries: newEntries as unknown as Record<string, unknown>[],
       });
+      if (await reconcileSupersededEntries(result?.supersededEntryIds)) {
+        showNotice(
+          result?.error
+            ? "This timer was already stopped on another device and history was refreshed. Other changes still need to sync."
+            : "This timer was already stopped on another device. History was refreshed without adding duplicate time.",
+          result?.error ? "warning" : "info",
+        );
+      }
     },
-    [entries, persistMutation, tasks, userId],
+    [
+      entries,
+      persistMutation,
+      reconcileSupersededEntries,
+      showNotice,
+      tasks,
+      userId,
+    ],
   );
 
   const pauseAll = useCallback(async () => {
@@ -635,14 +748,14 @@ export function AppProvider({
           current.filter((item) => item.id !== timerId),
         );
         setEntries(snapshot.entries);
-        setNotice(
+        showNotice(
           "This timer was already resolved on another device. Your history has been refreshed.",
         );
         return null;
       }
       return timer;
     },
-    [userId],
+    [showNotice, userId],
   );
 
   const continueRecoveryTimer = useCallback(
@@ -658,7 +771,6 @@ export function AppProvider({
       setRecoveryTimers((current) =>
         current.filter((item) => item.id !== timer.id),
       );
-      setNotice("The timer is now continuing on this device.");
     },
     [refreshRecoveryTimer],
   );
@@ -684,16 +796,30 @@ export function AppProvider({
       setRecoveryTimers((current) =>
         current.filter((item) => item.id !== timer.id),
       );
-      setSyncState("pending");
+      updateSyncStatus("pending");
       const result = await syncPendingMutations(userId);
-      setSyncState(result.error ? "error" : "synced");
-      setNotice(
-        result.error
-          ? "The checkpoint is saved on this device and will sync when the connection recovers."
-          : "The timer was stopped at its last confirmed checkpoint.",
+      updateSyncStatus(result.error ? "error" : "synced", result.error ?? null);
+      const superseded = await reconcileSupersededEntries(
+        result.supersededEntryIds,
+      );
+      showNotice(
+        superseded
+          ? result.error
+            ? "This timer was already stopped on another device and history was refreshed. Other changes still need to sync."
+            : "This timer was already stopped on another device. History was refreshed without adding duplicate time."
+          : result.error
+            ? "The checkpoint is saved on this device and will sync when the connection recovers."
+            : "The timer was stopped at its last confirmed checkpoint.",
+        result.error ? "warning" : superseded ? "info" : "success",
       );
     },
-    [refreshRecoveryTimer, userId],
+    [
+      reconcileSupersededEntries,
+      refreshRecoveryTimer,
+      showNotice,
+      updateSyncStatus,
+      userId,
+    ],
   );
 
   useEffect(() => {
@@ -713,18 +839,30 @@ export function AppProvider({
     const onOnline = () => {
       if (restoringRef.current) return;
       if (userId !== "local-demo")
-        void syncPendingMutations(userId).then((result) =>
-          setSyncState(result.error ? "error" : "synced"),
-        );
+        void syncPendingMutations(userId).then(async (result) => {
+          updateSyncStatus(
+            result.error ? "error" : "synced",
+            result.error ?? null,
+          );
+          if (await reconcileSupersededEntries(result.supersededEntryIds)) {
+            showNotice(
+              result.error
+                ? "A timer was already stopped on another device and history was refreshed. Other changes still need to sync."
+                : "A timer was already stopped on another device. History was refreshed without adding duplicate time.",
+              result.error ? "warning" : "info",
+            );
+          }
+        });
     };
-    const onOffline = () => userId !== "local-demo" && setSyncState("offline");
+    const onOffline = () =>
+      userId !== "local-demo" && updateSyncStatus("offline");
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
     return () => {
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
     };
-  }, [userId]);
+  }, [reconcileSupersededEntries, showNotice, updateSyncStatus, userId]);
 
   useEffect(() => {
     const db = getLocalDatabase();
@@ -763,12 +901,14 @@ export function AppProvider({
       archivedAt: null,
       onDailyList: true,
     };
-    setTasks((current) => [...current, task]);
     await getLocalDatabase()?.tasks.put(task);
     await persistMutation(
       "task-upsert",
       task as unknown as Record<string, unknown>,
     );
+    // Queue the parent task before publishing it to the target-seeding effect.
+    // The sync queue also repairs older target-before-task races.
+    setTasks((current) => [...current, task]);
     await ensureTaskTargets(
       [task],
       [{ taskId: task.id, localDate: todayKey(profile.timezone) }],
@@ -814,11 +954,12 @@ export function AppProvider({
         localDate: targetDate,
       })),
     ).catch(() =>
-      setNotice(
+      showNotice(
         "Couldn't save today's allotments. Please reload and try again.",
+        "error",
       ),
     );
-  }, [ensureTaskTargets, hydrated, targetDate, tasks]);
+  }, [ensureTaskTargets, hydrated, showNotice, targetDate, tasks]);
 
   async function updateTask(id: string, input: AddTaskInput) {
     const existing = tasks.find((task) => task.id === id);
@@ -1103,24 +1244,55 @@ export function AppProvider({
     await persistMutation("entry-delete", { id });
   }
 
+  async function saveProfile(input: {
+    displayName: string;
+    timezone: string;
+    theme: ThemePreference;
+    onboardingCompleted?: boolean;
+  }) {
+    const validated = profileSchema.parse(input);
+    const next = {
+      ...profile,
+      ...validated,
+      onboardingCompleted:
+        input.onboardingCompleted ?? profile.onboardingCompleted,
+    };
+    setProfile(next);
+    await getLocalDatabase()?.profiles.put(next);
+    return persistMutation(
+      "profile-update",
+      next as unknown as Record<string, unknown>,
+    );
+  }
+
   async function updateProfile(input: {
     displayName: string;
     timezone: string;
     theme: ThemePreference;
     onboardingCompleted?: boolean;
   }) {
-    const next = {
-      ...profile,
-      ...input,
-      onboardingCompleted:
-        input.onboardingCompleted ?? profile.onboardingCompleted,
-    };
-    setProfile(next);
-    await getLocalDatabase()?.profiles.put(next);
-    await persistMutation(
-      "profile-update",
-      next as unknown as Record<string, unknown>,
-    );
+    await saveProfile(input);
+  }
+
+  async function completeOnboarding(
+    input: {
+      displayName: string;
+      timezone: string;
+      theme: ThemePreference;
+    },
+    keepExamples: boolean,
+  ) {
+    if (!hydrated) throw new Error("Wait for setup to finish loading.");
+    if (userId !== "local-demo" && !navigator.onLine) {
+      throw new Error("Connect to the internet to finish setup.");
+    }
+    if (!keepExamples) {
+      for (const task of tasks.filter((item) => !item.archivedAt)) {
+        await archiveTask(task.id);
+      }
+    }
+    const result = await saveProfile({ ...input, onboardingCompleted: true });
+    if (result?.error) throw new Error(result.error);
   }
 
   async function restoreBackup(input: Backup) {
@@ -1209,8 +1381,8 @@ export function AppProvider({
         setTasks(snapshot.tasks);
         setTaskDailyTargets(snapshot.taskDailyTargets);
         setEntries(snapshot.entries);
-        setNotice(null);
-        setSyncState(userId === "local-demo" ? "local" : "synced");
+        dismissNotice();
+        updateSyncStatus(userId === "local-demo" ? "local" : "synced");
       });
     } finally {
       restoringRef.current = false;
@@ -1260,6 +1432,7 @@ export function AppProvider({
     now,
     hydrated,
     syncState,
+    syncError,
     notice,
     today,
     totals,
@@ -1284,9 +1457,10 @@ export function AppProvider({
     revertEntryCorrection,
     deleteEntry,
     updateProfile,
+    completeOnboarding,
     clearUserData,
     restoreBackup,
-    dismissNotice: () => setNotice(null),
+    dismissNotice,
   };
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

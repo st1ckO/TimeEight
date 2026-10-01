@@ -58,7 +58,7 @@ describe("CalendarPage corrections", () => {
         {
           id: "task-1",
           userId: "user-1",
-          name: "Morning walk",
+          name: "Focus time",
           color: "#197c67",
           goalKind: "minimum",
           targetSeconds: 3_600,
@@ -92,19 +92,81 @@ describe("CalendarPage corrections", () => {
     expect(screen.getAllByText("1h 0m").length).toBeGreaterThan(0);
   });
 
+  it("switches from individual history to per-task daily totals", async () => {
+    const user = userEvent.setup();
+    const app = vi.mocked(useTimeEight)();
+    vi.mocked(useTimeEight).mockReturnValue({
+      ...app,
+      entries: [
+        correctedTimer,
+        manualEntry,
+        {
+          ...manualEntry,
+          id: "planning-entry",
+          taskId: "task-2",
+          durationSeconds: 900,
+        },
+      ],
+      tasks: [
+        ...app.tasks,
+        {
+          id: "task-2",
+          userId: "user-1",
+          name: "Planning",
+          color: "#7c5bb5",
+          goalKind: "minimum",
+          targetSeconds: 1_800,
+          sortOrder: 1,
+          archivedAt: null,
+          onDailyList: true,
+        },
+      ],
+    });
+    render(<CalendarPage />);
+
+    expect(
+      screen.getByRole("region", { name: "Tracked entries" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "By task" }));
+
+    const totals = screen.getByRole("region", { name: "Daily task totals" });
+    expect(totals).toBeInTheDocument();
+    expect(
+      screen.getByRole("article", {
+        name: "Focus time: 1h 0m across 2 entries",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("article", {
+        name: "Planning: 15m across 1 entry",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", { name: /History order/ }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Timeline" }));
+    expect(
+      screen.getByRole("region", { name: "Tracked entries" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: /History order: Latest first/ }),
+    ).toBeInTheDocument();
+  });
+
   it("offers revert only for a corrected timer entry", async () => {
     const user = userEvent.setup();
     render(<CalendarPage />);
 
     await user.click(
       screen.getAllByRole("button", {
-        name: "Entry actions for Morning walk",
+        name: "Entry actions for Focus time",
       })[0]!,
     );
     const revert = screen.getByRole("menuitem", {
       name: "Restore original time",
     });
-    expect(screen.getAllByText("Morning walk")).toHaveLength(2);
+    expect(screen.getAllByText("Focus time")).toHaveLength(2);
     expect(screen.getAllByText("Manual addition")).toHaveLength(1);
 
     await user.click(revert);
@@ -171,7 +233,7 @@ describe("CalendarPage corrections", () => {
       expect(row.querySelectorAll("button")).toHaveLength(1);
     await user.click(
       screen.getAllByRole("button", {
-        name: "Entry actions for Morning walk",
+        name: "Entry actions for Focus time",
       })[1]!,
     );
     expect(
@@ -185,7 +247,7 @@ describe("CalendarPage corrections", () => {
     expect(deleteEntry).not.toHaveBeenCalled();
     await user.click(
       screen.getAllByRole("button", {
-        name: "Entry actions for Morning walk",
+        name: "Entry actions for Focus time",
       })[1]!,
     );
     await user.click(screen.getByRole("menuitem", { name: "Delete entry" }));

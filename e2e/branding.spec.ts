@@ -2,12 +2,36 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { phraseForDate } from "../components/today/daily-phrase";
 
+test("uses the dark control scheme on the first system-theme render", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/today");
+  await page.getByRole("button", { name: "Task list", exact: true }).click();
+
+  const search = page.getByRole("textbox", { name: "Find a task" });
+  await expect(search).toBeVisible();
+  await expect
+    .poll(() =>
+      search.evaluate((input) => ({
+        control: getComputedStyle(input).colorScheme,
+        document: getComputedStyle(document.documentElement).colorScheme,
+      })),
+    )
+    .toEqual({ control: "dark", document: "dark" });
+});
+
 test("shows the fixed goal in onboarding and keeps Settings focused on preferences", async ({
   page,
 }) => {
   await page.goto("/today");
   await expect(page.getByText("of 8h 0m", { exact: true })).toBeVisible();
   await page.goto("/settings");
+  await expect(page.getByLabel("Display name")).toHaveAttribute(
+    "maxlength",
+    "25",
+  );
+  await expect(page.getByText("Up to 25 characters.")).toBeVisible();
   await expect(page.getByText(/Daily ring goal/)).toHaveCount(0);
   await expect(page.getByRole("spinbutton")).toHaveCount(0);
   await expect(
@@ -34,9 +58,7 @@ test("upgrades a custom goal without rewriting earlier daily goals", async ({
   page,
 }) => {
   await page.goto("/today");
-  await expect(
-    page.getByRole("heading", { name: "Morning walk" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Focus time" })).toBeVisible();
   const dates = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open("timeeight");

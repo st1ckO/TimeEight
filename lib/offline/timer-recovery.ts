@@ -55,6 +55,19 @@ export function deterministicRecoveryId(namespace: string, value: string) {
   return `${hex.slice(0, 4).join("")}-${hex.slice(4, 6).join("")}-${hex.slice(6, 8).join("")}-${hex.slice(8, 10).join("")}-${hex.slice(10).join("")}`;
 }
 
+export function timerEntryIdentity(
+  timer: Pick<ActiveTimer, "id" | "mutationId">,
+  localDate: string,
+) {
+  return {
+    id: deterministicRecoveryId(timer.id, `entry:${localDate}`),
+    mutationId: deterministicRecoveryId(
+      timer.mutationId,
+      `entry-mutation:${localDate}`,
+    ),
+  };
+}
+
 export function planTimerRecovery(
   timer: ActiveTimer,
   userId: string,
@@ -75,8 +88,9 @@ export function planTimerRecovery(
     // One stable row per timer and local date lets a newer checkpoint replace
     // an uncertain partial retry instead of creating a second history row.
     const sliceKey = slice.localDate;
+    const identity = timerEntryIdentity(timer, sliceKey);
     return {
-      id: deterministicRecoveryId(timer.id, `entry:${sliceKey}`),
+      id: identity.id,
       userId,
       taskId: timer.taskId,
       localDate: slice.localDate,
@@ -88,10 +102,7 @@ export function planTimerRecovery(
       correctionOriginalTaskId: null,
       correctionOriginalLocalDate: null,
       correctionOriginalDurationSeconds: null,
-      mutationId: deterministicRecoveryId(
-        timer.mutationId,
-        `entry-mutation:${sliceKey}`,
-      ),
+      mutationId: identity.mutationId,
     };
   });
   const createdAt = timer.checkpointedAt;
