@@ -75,6 +75,7 @@ import {
 } from "@/lib/offline/sync";
 import {
   commitTimerRecovery,
+  localTimersStoppedRemotely,
   mergeEntriesById,
   planTimerRecovery,
   remoteTimersNeedingRecovery,
@@ -296,6 +297,7 @@ export function AppProvider({
   const [syncError, setSyncError] = useState<string | null>(null);
   const [notice, setNotice] = useState<AppNotice | null>(null);
   const activeRef = useRef(activeTimers);
+  const timerRefreshRef = useRef<Promise<boolean> | null>(null);
   const restoringRef = useRef(false);
 
   useEffect(() => {
@@ -613,6 +615,70 @@ export function AppProvider({
     [showNotice, updateSyncStatus, userId],
   );
 
+  const reconcileRemoteTimerState = useCallback(() => {
+    if (
+      timerRefreshRef.current ||
+      activeRef.current.length === 0 ||
+      !isSupabaseConfigured() ||
+      userId === "local-demo" ||
+      !navigator.onLine
+    ) {
+      return timerRefreshRef.current ?? Promise.resolve(false);
+    }
+
+    const refresh = (async () => {
+      try {
+        const db = getLocalDatabase();
+        if (!db) return false;
+        const [snapshot, pendingStarts] = await Promise.all([
+          loadRemoteSnapshot(userId),
+          db.pendingMutations
+            .filter(
+              (mutation) =>
+                mutation.userId === userId &&
+                mutation.kind === "timer-start" &&
+                typeof mutation.payload.id === "string",
+            )
+            .toArray(),
+        ]);
+        const pendingStartTimerIds = new Set(
+          pendingStarts.map((mutation) => mutation.payload.id as string),
+        );
+        const stoppedTimers = localTimersStoppedRemotely(
+          activeRef.current,
+          snapshot.activeTimers,
+          pendingStartTimerIds,
+        );
+        if (stoppedTimers.length === 0) return false;
+
+        const stoppedIds = new Set(stoppedTimers.map((timer) => timer.id));
+        await db.transaction(
+          "rw",
+          [db.activeTimers, db.timeEntries],
+          async () => {
+            await db.activeTimers.bulkDelete([...stoppedIds]);
+            if (snapshot.entries.length > 0)
+              await db.timeEntries.bulkPut(snapshot.entries);
+          },
+        );
+        activeRef.current = activeRef.current.filter(
+          (timer) => !stoppedIds.has(timer.id),
+        );
+        setActiveTimers(activeRef.current);
+        setEntries((current) => mergeEntriesById(current, snapshot.entries));
+        return true;
+      } catch {
+        updateSyncStatus("error", "Timer status could not be refreshed.");
+        return false;
+      }
+    })();
+    timerRefreshRef.current = refresh;
+    void refresh.finally(() => {
+      if (timerRefreshRef.current === refresh) timerRefreshRef.current = null;
+    });
+    return refresh;
+  }, [updateSyncStatus, userId]);
+
   const pauseTimer = useCallback(
     async (taskId: string, recovered = false, preserveElapsed = false) => {
       if (restoringRef.current) return;
@@ -852,6 +918,7 @@ export function AppProvider({
               result.error ? "warning" : "info",
             );
           }
+          if (!result.error) await reconcileRemoteTimerState();
         });
     };
     const onOffline = () =>
@@ -862,7 +929,26 @@ export function AppProvider({
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
     };
-  }, [reconcileSupersededEntries, showNotice, updateSyncStatus, userId]);
+  }, [
+    reconcileRemoteTimerState,
+    reconcileSupersededEntries,
+    showNotice,
+    updateSyncStatus,
+    userId,
+  ]);
+
+  useEffect(() => {
+    const refreshVisibleTimers = () => {
+      if (document.visibilityState === "visible")
+        void reconcileRemoteTimerState();
+    };
+    window.addEventListener("focus", refreshVisibleTimers);
+    document.addEventListener("visibilitychange", refreshVisibleTimers);
+    return () => {
+      window.removeEventListener("focus", refreshVisibleTimers);
+      document.removeEventListener("visibilitychange", refreshVisibleTimers);
+    };
+  }, [reconcileRemoteTimerState]);
 
   useEffect(() => {
     const db = getLocalDatabase();
@@ -882,11 +968,15 @@ export function AppProvider({
         userId !== "local-demo" &&
         navigator.onLine
       ) {
-        for (const timer of next) void checkpointRemoteTimer(timer);
+        for (const timer of next)
+          void checkpointRemoteTimer(timer).then((result) => {
+            if (!result.error && (result.data?.length ?? 0) === 0)
+              void reconcileRemoteTimerState();
+          });
       }
     }, 15_000);
     return () => window.clearInterval(checkpoint);
-  }, [activeTimers.length, userId]);
+  }, [activeTimers.length, reconcileRemoteTimerState, userId]);
 
   async function addTask(input: AddTaskInput) {
     const parsed = taskSchema.parse({

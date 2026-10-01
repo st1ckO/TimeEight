@@ -3,6 +3,7 @@ import type { ActiveTimer } from "@/lib/domain/types";
 import type { TimeEightDatabase } from "./db";
 import {
   commitTimerRecovery,
+  localTimersStoppedRemotely,
   mergeEntriesById,
   planTimerRecovery,
   remoteTimersNeedingRecovery,
@@ -81,6 +82,22 @@ describe("checkpoint timer recovery", () => {
     expect(
       remoteTimersNeedingRecovery([timer, serverOnly], new Set([timer.id])),
     ).toEqual([serverOnly]);
+  });
+
+  it("detects a timer stopped remotely without discarding an unsynced start", () => {
+    const unsyncedStart = {
+      ...timer,
+      id: "55555555-5555-4555-8555-555555555555",
+    };
+
+    expect(
+      localTimersStoppedRemotely(
+        [timer, unsyncedStart],
+        [],
+        new Set([unsyncedStart.id]),
+      ),
+    ).toEqual([timer]);
+    expect(localTimersStoppedRemotely([timer], [timer], new Set())).toEqual([]);
   });
 
   it("commits the timer removal, entries, and sync mutations together", async () => {

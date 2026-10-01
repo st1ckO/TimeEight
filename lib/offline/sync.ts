@@ -406,7 +406,9 @@ async function checkpointRemoteTimerUnlocked(timer: ActiveTimer) {
       checkpointed_at: timer.checkpointedAt,
       checkpoint_seconds: timer.checkpointSeconds,
     })
-    .eq("id", timer.id);
+    .eq("id", timer.id)
+    .eq("user_id", timer.userId)
+    .select("id");
 }
 
 export async function checkpointRemoteTimer(timer: ActiveTimer) {
