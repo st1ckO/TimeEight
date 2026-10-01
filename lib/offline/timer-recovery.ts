@@ -22,6 +22,18 @@ export function remoteTimersNeedingRecovery(
   return remoteTimers.filter((timer) => !localTimerIds.has(timer.id));
 }
 
+export function localTimersStoppedRemotely(
+  localTimers: ActiveTimer[],
+  remoteTimers: ActiveTimer[],
+  pendingStartTimerIds: ReadonlySet<string>,
+) {
+  const remoteTimerIds = new Set(remoteTimers.map((timer) => timer.id));
+  return localTimers.filter(
+    (timer) =>
+      !remoteTimerIds.has(timer.id) && !pendingStartTimerIds.has(timer.id),
+  );
+}
+
 function hash32(value: string, seed: number) {
   let hash = seed >>> 0;
   for (let index = 0; index < value.length; index += 1) {
