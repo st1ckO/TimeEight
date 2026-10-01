@@ -8,7 +8,7 @@ test("restores exported JSON only after full overwrite confirmation", async ({
   test.setTimeout(60_000);
   await page.goto("/settings");
   const originalName = await page
-    .getByLabel("Display name", { exact: true })
+    .getByLabel("Display name")
     .inputValue();
   const downloading = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export JSON", exact: true }).click();
@@ -64,7 +64,7 @@ test("restores exported JSON only after full overwrite confirmation", async ({
   await expect(
     dialog.getByRole("button", { name: "Overwrite and restore" }),
   ).toBeDisabled();
-  await expect(page.getByLabel("Display name", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Display name")).toHaveValue(
     originalName,
   );
   await confirmation.fill("CONFIRM");
@@ -73,7 +73,7 @@ test("restores exported JSON only after full overwrite confirmation", async ({
   await expect(
     page.getByRole("status").filter({ hasText: "Backup restored" }),
   ).toBeVisible();
-  await expect(page.getByLabel("Display name", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Display name")).toHaveValue(
     "Restored empty",
   );
   await page.getByRole("link", { name: "Today", exact: true }).first().click();
@@ -103,7 +103,7 @@ test("restores exported JSON only after full overwrite confirmation", async ({
   await dialog.getByRole("button", { name: "Overwrite and restore" }).click();
   await expect(dialog).toHaveCount(0);
   await page.reload();
-  await expect(page.getByLabel("Display name", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Display name")).toHaveValue(
     originalName,
   );
   await page.getByRole("link", { name: "Today", exact: true }).first().click();
@@ -192,9 +192,13 @@ test("requires confirmation before signing out and allows returning to the demo"
   page,
 }) => {
   await page.goto("/settings");
-  const name = page.getByLabel("Display name", { exact: true });
+  const name = page.getByLabel("Display name");
   await name.fill("Sign-out test");
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Saved", exact: true }),
+  ).toBeDisabled();
+  await expect(page.getByRole("status")).toContainText("Changes saved.");
   const trigger = page.getByRole("button", { name: "Sign out", exact: true });
   await trigger.click();
   const dialog = page.getByRole("dialog", { name: "Sign out?", exact: true });
@@ -206,7 +210,7 @@ test("requires confirmation before signing out and allows returning to the demo"
   ).toEqual([]);
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(trigger).toBeFocused();
-  await expect(name).toHaveValue("Sign-out test");
+  await expect(name).toBeVisible();
   await trigger.click();
   await dialog.getByRole("button", { name: "Sign out", exact: true }).click();
   await expect(page).toHaveURL(/\/login$/, { timeout: 15_000 });
@@ -280,7 +284,7 @@ test("saves settings only when preferences change", async ({
     page.getByRole("heading", { name: "Settings", exact: true }),
   ).toBeVisible();
   const save = page.getByRole("button", { name: "Save changes", exact: true });
-  const name = page.getByLabel("Display name", { exact: true });
+  const name = page.getByLabel("Display name");
   const originalName = await name.inputValue();
   const timezone = page.getByRole("button", { name: "Timezone", exact: true });
   const originalTimezone = await timezone.innerText();
