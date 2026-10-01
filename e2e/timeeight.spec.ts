@@ -471,8 +471,24 @@ test("switches calendar history between timeline and per-task totals", async ({
     page.getByRole("region", { name: "Tracked entries" }),
   ).toBeVisible();
 
+  const switcher = page.getByRole("group", { name: "History view" });
+  const initialIndicatorTransform = await switcher.evaluate(
+    (element) => getComputedStyle(element, "::before").transform,
+  );
   await byTask.click();
   await expect(byTask).toHaveAttribute("aria-pressed", "true");
+  await expect
+    .poll(() =>
+      switcher.evaluate(
+        (element) => getComputedStyle(element, "::before").transform,
+      ),
+    )
+    .not.toBe(initialIndicatorTransform);
+  expect(
+    await switcher.evaluate(
+      (element) => getComputedStyle(element, "::before").transitionDuration,
+    ),
+  ).not.toBe("0s");
   const totals = page.getByRole("region", { name: "Daily task totals" });
   await expect(totals).toBeVisible();
   await expect(

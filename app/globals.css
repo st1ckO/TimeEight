@@ -1851,6 +1851,8 @@ h3 {
   justify-content: flex-end;
 }
 .history-view-switcher {
+  position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 4px;
@@ -1860,7 +1862,23 @@ h3 {
   border-radius: 14px;
   background: var(--canvas);
 }
+.history-view-switcher::before {
+  position: absolute;
+  z-index: 0;
+  inset: 4px auto 4px 4px;
+  width: calc((100% - 12px) / 2);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 1px 5px color-mix(in srgb, var(--ink) 12%, transparent);
+  content: "";
+  pointer-events: none;
+}
+.history-view-switcher:has(button:nth-child(2)[aria-pressed="true"])::before {
+  transform: translateX(calc(100% + 4px));
+}
 .history-view-switcher button {
+  position: relative;
+  z-index: 1;
   min-height: 40px;
   padding: 0 12px;
   border: 0;
@@ -1873,9 +1891,7 @@ h3 {
   cursor: pointer;
 }
 .history-view-switcher button[aria-pressed="true"] {
-  background: var(--surface);
   color: var(--ink);
-  box-shadow: 0 1px 5px color-mix(in srgb, var(--ink) 12%, transparent);
 }
 .day-detail .history-sort {
   display: flex;
@@ -2226,11 +2242,13 @@ h3 {
     animation: notification-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
   }
   .task-source-options::before,
-  .task-intention::before {
+  .task-intention::before,
+  .history-view-switcher::before {
     transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
   }
   .task-source-options button,
-  .task-intention span {
+  .task-intention span,
+  .history-view-switcher button {
     transition: color 0.3s ease;
   }
 }
