@@ -3317,6 +3317,7 @@ h3 {
 }
 .onboarding-form label,
 .settings-form label,
+.settings-form .settings-field,
 .settings-form fieldset {
   display: grid;
   gap: 8px;
