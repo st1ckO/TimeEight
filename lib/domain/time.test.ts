@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   aggregateEntries,
+  dailyTaskTotals,
   elapsedSeconds,
   elapsedSecondsForDate,
   formatDuration,
@@ -106,6 +107,60 @@ describe("time domain", () => {
       },
     ];
     expect(aggregateEntries(entries).get("2026-09-11")).toBe(5400);
+  });
+
+  it("groups a selected day's tracked history by task", () => {
+    const entries = [
+      {
+        id: "1",
+        userId: "user",
+        taskId: "focus",
+        localDate: "2026-09-11",
+        durationSeconds: 3600,
+        source: "timer" as const,
+        startedAt: null,
+        endedAt: null,
+        manuallyAdjusted: false,
+        correctionOriginalTaskId: null,
+        correctionOriginalLocalDate: null,
+        correctionOriginalDurationSeconds: null,
+        mutationId: "m1",
+      },
+      {
+        id: "2",
+        userId: "user",
+        taskId: "focus",
+        localDate: "2026-09-11",
+        durationSeconds: 1800,
+        source: "manual" as const,
+        startedAt: null,
+        endedAt: null,
+        manuallyAdjusted: false,
+        correctionOriginalTaskId: null,
+        correctionOriginalLocalDate: null,
+        correctionOriginalDurationSeconds: null,
+        mutationId: "m2",
+      },
+      {
+        id: "3",
+        userId: "user",
+        taskId: "admin",
+        localDate: "2026-09-12",
+        durationSeconds: 900,
+        source: "recovered" as const,
+        startedAt: null,
+        endedAt: null,
+        manuallyAdjusted: false,
+        correctionOriginalTaskId: null,
+        correctionOriginalLocalDate: null,
+        correctionOriginalDurationSeconds: null,
+        mutationId: "m3",
+      },
+    ];
+
+    expect(dailyTaskTotals(entries, "2026-09-11")).toEqual([
+      { taskId: "focus", durationSeconds: 5400, entryCount: 2 },
+    ]);
   });
 
   it("formats compact and clock durations", () => {

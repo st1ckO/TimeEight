@@ -75,6 +75,8 @@ const timezoneRegions = [
 
 export function SettingsPage() {
   const app = useTimeEight();
+  const displayNameId = useId();
+  const displayNameHintId = useId();
   const timezoneLabelId = useId();
   const deviceTimezone =
     app.now > 0 ? Intl.DateTimeFormat().resolvedOptions().timeZone : "";
@@ -223,9 +225,11 @@ export function SettingsPage() {
       </header>
       <div className="settings-grid">
         <form className="settings-card settings-form" onSubmit={save}>
-          <label>
-            Display name
+          <div className="settings-field">
+            <label htmlFor={displayNameId}>Display name</label>
             <input
+              id={displayNameId}
+              aria-describedby={displayNameHintId}
               value={name}
               disabled={saving}
               onChange={(event) => {
@@ -235,8 +239,10 @@ export function SettingsPage() {
               }}
               maxLength={DISPLAY_NAME_MAX_LENGTH}
             />
-            <small>Up to {DISPLAY_NAME_MAX_LENGTH} characters.</small>
-          </label>
+            <small id={displayNameHintId}>
+              Up to {DISPLAY_NAME_MAX_LENGTH} characters.
+            </small>
+          </div>
           <div className="entry-task-field">
             <span id={timezoneLabelId}>Timezone</span>
             <TimezonePicker

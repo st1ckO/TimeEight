@@ -22,6 +22,7 @@ import { useMemo, useRef, useState } from "react";
 import { useTimeEight } from "@/components/app/app-provider";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import {
+  dailyTaskTotals,
   formatDuration,
   formatSignedDuration,
   goalForDate,
@@ -72,6 +73,9 @@ export function CalendarPage() {
   const [historyOrder, setHistoryOrder] = useState<"latest" | "oldest">(
     "latest",
   );
+  const [historyView, setHistoryView] = useState<"timeline" | "tasks">(
+    "timeline",
+  );
   const cells = useMemo(() => monthCells(month), [month]);
   const entries = app.entries
     .filter((entry) => entry.localDate === selectedDate)
@@ -82,6 +86,16 @@ export function CalendarPage() {
       return historyOrder === "latest" ? -chronological : chronological;
     });
   const tasksById = new Map(app.tasks.map((task) => [task.id, task]));
+  const taskTotals = useMemo(() => {
+    const taskOrder = new Map(
+      app.tasks.map((task) => [task.id, task.sortOrder]),
+    );
+    return dailyTaskTotals(app.entries, selectedDate).sort(
+      (a, b) =>
+        (taskOrder.get(a.taskId) ?? Number.MAX_SAFE_INTEGER) -
+        (taskOrder.get(b.taskId) ?? Number.MAX_SAFE_INTEGER),
+    );
+  }, [app.entries, app.tasks, selectedDate]);
   const overLimitByEntry = useMemo(
     () => historyOverLimitSeconds(app.entries, app.tasks, app.taskDailyTargets),
     [app.entries, app.tasks, app.taskDailyTargets],
@@ -206,59 +220,83 @@ export function CalendarPage() {
               </span>
             </div>
           </div>
-          <div className="day-history-toolbar">
-            <Select.Root
-              value={historyOrder}
-              onValueChange={(value) =>
-                setHistoryOrder(value as "latest" | "oldest")
-              }
+          <div
+            className="history-view-switcher"
+            role="group"
+            aria-label="History view"
+          >
+            <button
+              type="button"
+              aria-pressed={historyView === "timeline"}
+              onClick={() => setHistoryView("timeline")}
             >
-              <Select.Trigger
-                className="history-sort"
-                aria-label={`History order: ${historyOrder === "latest" ? "Latest first" : "Oldest first"}`}
+              Timeline
+            </button>
+            <button
+              type="button"
+              aria-pressed={historyView === "tasks"}
+              onClick={() => setHistoryView("tasks")}
+            >
+              By task
+            </button>
+          </div>
+          <div
+            className={`day-history-toolbar ${historyView === "tasks" ? "task-summary-toolbar" : ""}`}
+          >
+            {historyView === "timeline" && (
+              <Select.Root
+                value={historyOrder}
+                onValueChange={(value) =>
+                  setHistoryOrder(value as "latest" | "oldest")
+                }
               >
-                {historyOrder === "latest" ? (
-                  <ArrowDown size={16} aria-hidden />
-                ) : (
-                  <ArrowUp size={16} aria-hidden />
-                )}
-                <Select.Value />
-                <Select.Icon>
-                  <ChevronDown size={14} aria-hidden />
-                </Select.Icon>
-              </Select.Trigger>
-              <Select.Portal>
-                <Select.Content
-                  className="history-sort-menu entry-task-menu"
-                  position="popper"
-                  align="start"
-                  sideOffset={6}
-                  collisionPadding={14}
+                <Select.Trigger
+                  className="history-sort"
+                  aria-label={`History order: ${historyOrder === "latest" ? "Latest first" : "Oldest first"}`}
                 >
-                  <Select.Viewport>
-                    <Select.Item value="latest" className="entry-task-option">
-                      <div>
-                        <Select.ItemText>Latest first</Select.ItemText>
-                        <small>Recent timers at the top</small>
-                      </div>
-                      <Select.ItemIndicator>
-                        <Check size={16} aria-hidden />
-                      </Select.ItemIndicator>
-                    </Select.Item>
-                    <Select.Item value="oldest" className="entry-task-option">
-                      <div>
-                        <Select.ItemText>Oldest first</Select.ItemText>
-                        <small>Earlier timers at the top</small>
-                      </div>
-                      <Select.ItemIndicator>
-                        <Check size={16} aria-hidden />
-                      </Select.ItemIndicator>
-                    </Select.Item>
-                  </Select.Viewport>
-                  <p>Manual entries stay at the end.</p>
-                </Select.Content>
-              </Select.Portal>
-            </Select.Root>
+                  {historyOrder === "latest" ? (
+                    <ArrowDown size={16} aria-hidden />
+                  ) : (
+                    <ArrowUp size={16} aria-hidden />
+                  )}
+                  <Select.Value />
+                  <Select.Icon>
+                    <ChevronDown size={14} aria-hidden />
+                  </Select.Icon>
+                </Select.Trigger>
+                <Select.Portal>
+                  <Select.Content
+                    className="history-sort-menu entry-task-menu"
+                    position="popper"
+                    align="start"
+                    sideOffset={6}
+                    collisionPadding={14}
+                  >
+                    <Select.Viewport>
+                      <Select.Item value="latest" className="entry-task-option">
+                        <div>
+                          <Select.ItemText>Latest first</Select.ItemText>
+                          <small>Recent timers at the top</small>
+                        </div>
+                        <Select.ItemIndicator>
+                          <Check size={16} aria-hidden />
+                        </Select.ItemIndicator>
+                      </Select.Item>
+                      <Select.Item value="oldest" className="entry-task-option">
+                        <div>
+                          <Select.ItemText>Oldest first</Select.ItemText>
+                          <small>Earlier timers at the top</small>
+                        </div>
+                        <Select.ItemIndicator>
+                          <Check size={16} aria-hidden />
+                        </Select.ItemIndicator>
+                      </Select.Item>
+                    </Select.Viewport>
+                    <p>Manual entries stay at the end.</p>
+                  </Select.Content>
+                </Select.Portal>
+              </Select.Root>
+            )}
             <button
               className="primary-button calendar-add-time"
               onClick={() => setAdding(true)}
@@ -271,14 +309,18 @@ export function CalendarPage() {
           <div
             className="history-list"
             ref={historyRegion}
-            key={selectedDate}
+            key={`${selectedDate}-${historyView}`}
             role="region"
-            aria-label="Tracked entries"
+            aria-label={
+              historyView === "timeline"
+                ? "Tracked entries"
+                : "Daily task totals"
+            }
             tabIndex={0}
           >
             {entries.length === 0 ? (
               <div className="empty-card">No tracked entries for this day.</div>
-            ) : (
+            ) : historyView === "timeline" ? (
               entries.map((entry) => (
                 <article className="history-entry" key={entry.id}>
                   <span
@@ -396,6 +438,43 @@ export function CalendarPage() {
                   </DropdownMenu.Root>
                 </article>
               ))
+            ) : (
+              taskTotals.map((total) => {
+                const task = tasksById.get(total.taskId);
+                const taskName = task?.name ?? "Archived task";
+                const entryLabel = `${total.entryCount} ${total.entryCount === 1 ? "entry" : "entries"}`;
+                return (
+                  <article
+                    className="task-total-entry"
+                    key={total.taskId}
+                    aria-label={`${taskName}: ${formatDuration(total.durationSeconds)} across ${entryLabel}`}
+                  >
+                    <span
+                      className="task-dot"
+                      style={{ background: task?.color ?? "var(--muted)" }}
+                    />
+                    <div>
+                      <h3 title={taskName}>{taskName}</h3>
+                      <div className="history-entry-meta">
+                        <span>{entryLabel}</span>
+                        {task && (
+                          <span className="history-entry-target">
+                            Allotment:{" "}
+                            {formatDuration(
+                              taskTargetForDate(
+                                task,
+                                app.taskDailyTargets ?? [],
+                                selectedDate,
+                              ),
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <strong>{formatDuration(total.durationSeconds)}</strong>
+                  </article>
+                );
+              })
             )}
           </div>
         </aside>
