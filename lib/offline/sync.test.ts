@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "@/lib/supabase/browser";
 import { getLocalDatabase } from "./db";
 import type { PendingMutation } from "./db";
-import { syncPendingMutations } from "./sync";
+import { checkpointRemoteTimer, syncPendingMutations } from "./sync";
 
 vi.mock("@/lib/supabase/browser", () => ({ createClient: vi.fn() }));
 vi.mock("./db", () => ({ getLocalDatabase: vi.fn() }));
@@ -23,6 +23,7 @@ describe("offline daily-list changes", () => {
   const removeMutation = vi.fn();
   const update = vi.fn();
   const upsert = vi.fn();
+  const select = vi.fn();
   const rpc = vi.fn();
   const eq = vi.fn();
   const from = vi.fn();
@@ -38,11 +39,13 @@ describe("offline daily-list changes", () => {
     const query = {
       update,
       upsert,
+      select,
       eq,
       then: (resolve: (value: typeof result) => void) => resolve(result),
     };
     update.mockReturnValue(query);
     upsert.mockReturnValue(query);
+    select.mockResolvedValue({ data: [], error: null });
     rpc.mockResolvedValue({ data: true, error: null });
     eq.mockReturnValue(query);
     from.mockReturnValue(query);
@@ -132,6 +135,33 @@ describe("offline daily-list changes", () => {
     expect(await syncPendingMutations("user-1")).toEqual({ synced: 0 });
     expect(removeMutation).not.toHaveBeenCalled();
     expect(from).not.toHaveBeenCalled();
+  });
+
+  it("checks whether a checkpointed timer still exists remotely", async () => {
+    const timer = {
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      userId: "user-1",
+      taskId: state.payload.id as string,
+      startedAt: "2026-09-29T01:00:00.000Z",
+      timezone: "Asia/Manila",
+      accumulatedSeconds: 0,
+      checkpointedAt: "2026-09-29T01:01:00.000Z",
+      checkpointSeconds: 60,
+      limitOverride: false,
+      mutationId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+    };
+
+    expect(await checkpointRemoteTimer(timer)).toEqual({
+      data: [],
+      error: null,
+    });
+    expect(update).toHaveBeenCalledWith({
+      checkpointed_at: timer.checkpointedAt,
+      checkpoint_seconds: timer.checkpointSeconds,
+    });
+    expect(eq).toHaveBeenCalledWith("id", timer.id);
+    expect(eq).toHaveBeenCalledWith("user_id", timer.userId);
+    expect(select).toHaveBeenCalledWith("id");
   });
 
   it("creates snapshots without overwriting another device's chosen target", async () => {
