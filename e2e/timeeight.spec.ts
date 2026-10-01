@@ -441,6 +441,65 @@ test("scrolls long history without growing the calendar", async ({ page }) => {
   }
 });
 
+test("switches calendar history between timeline and per-task totals", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page
+    .getByRole("link", { name: "Calendar", exact: true })
+    .first()
+    .click();
+
+  for (const entry of [
+    { task: "Focus time", hours: "1", minutes: "0" },
+    { task: "Learning", hours: "0", minutes: "30" },
+  ]) {
+    await page.getByRole("button", { name: "Add time", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Add tracked time" });
+    await dialog.getByRole("combobox").click();
+    await page.getByRole("option", { name: entry.task, exact: true }).click();
+    await dialog.getByLabel("Hours", { exact: true }).fill(entry.hours);
+    await dialog.getByLabel("Minutes", { exact: true }).fill(entry.minutes);
+    await dialog.getByRole("button", { name: "Add time", exact: true }).click();
+    await expect(dialog).toBeHidden();
+  }
+
+  const timeline = page.getByRole("button", { name: "Timeline", exact: true });
+  const byTask = page.getByRole("button", { name: "By task", exact: true });
+  await expect(timeline).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    page.getByRole("region", { name: "Tracked entries" }),
+  ).toBeVisible();
+
+  await byTask.click();
+  await expect(byTask).toHaveAttribute("aria-pressed", "true");
+  const totals = page.getByRole("region", { name: "Daily task totals" });
+  await expect(totals).toBeVisible();
+  await expect(
+    totals.getByRole("article", {
+      name: "Focus time: 1h 0m across 1 entry",
+    }),
+  ).toBeVisible();
+  await expect(
+    totals.getByRole("article", { name: "Learning: 30m across 1 entry" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("combobox", { name: /History order/ }),
+  ).toHaveCount(0);
+  expect(
+    (await new AxeBuilder({ page }).include(".day-detail").analyze())
+      .violations,
+  ).toEqual([]);
+
+  await timeline.click();
+  await expect(
+    page.getByRole("region", { name: "Tracked entries" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("combobox", { name: /History order: Latest first/ }),
+  ).toBeVisible();
+});
+
 test("keeps calendar entry controls balanced in both themes", async ({
   page,
 }, testInfo) => {

@@ -92,6 +92,68 @@ describe("CalendarPage corrections", () => {
     expect(screen.getAllByText("1h 0m").length).toBeGreaterThan(0);
   });
 
+  it("switches from individual history to per-task daily totals", async () => {
+    const user = userEvent.setup();
+    const app = vi.mocked(useTimeEight)();
+    vi.mocked(useTimeEight).mockReturnValue({
+      ...app,
+      entries: [
+        correctedTimer,
+        manualEntry,
+        {
+          ...manualEntry,
+          id: "planning-entry",
+          taskId: "task-2",
+          durationSeconds: 900,
+        },
+      ],
+      tasks: [
+        ...app.tasks,
+        {
+          id: "task-2",
+          userId: "user-1",
+          name: "Planning",
+          color: "#7c5bb5",
+          goalKind: "minimum",
+          targetSeconds: 1_800,
+          sortOrder: 1,
+          archivedAt: null,
+          onDailyList: true,
+        },
+      ],
+    });
+    render(<CalendarPage />);
+
+    expect(
+      screen.getByRole("region", { name: "Tracked entries" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "By task" }));
+
+    const totals = screen.getByRole("region", { name: "Daily task totals" });
+    expect(totals).toBeInTheDocument();
+    expect(
+      screen.getByRole("article", {
+        name: "Focus time: 1h 0m across 2 entries",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("article", {
+        name: "Planning: 15m across 1 entry",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", { name: /History order/ }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Timeline" }));
+    expect(
+      screen.getByRole("region", { name: "Tracked entries" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: /History order: Latest first/ }),
+    ).toBeInTheDocument();
+  });
+
   it("offers revert only for a corrected timer entry", async () => {
     const user = userEvent.setup();
     render(<CalendarPage />);

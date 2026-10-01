@@ -162,6 +162,31 @@ export function aggregateEntries(entries: TimeEntry[]): Map<string, number> {
   return totals;
 }
 
+export interface DailyTaskTotal {
+  taskId: string;
+  durationSeconds: number;
+  entryCount: number;
+}
+
+export function dailyTaskTotals(
+  entries: TimeEntry[],
+  localDate: string,
+): DailyTaskTotal[] {
+  const totals = new Map<string, DailyTaskTotal>();
+
+  entries.forEach((entry) => {
+    if (entry.localDate !== localDate) return;
+    const current = totals.get(entry.taskId);
+    totals.set(entry.taskId, {
+      taskId: entry.taskId,
+      durationSeconds: (current?.durationSeconds ?? 0) + entry.durationSeconds,
+      entryCount: (current?.entryCount ?? 0) + 1,
+    });
+  });
+
+  return [...totals.values()];
+}
+
 export const DAILY_GOAL_SECONDS = 8 * 60 * 60;
 
 export function goalForDate(
