@@ -2,7 +2,7 @@
 
 **Start a timer. Understand your day.**
 
-TimeEight is a personal time-awareness app for seeing where your time goes. Start a timer when something begins, stop it when you are done, and build a clear record of your day without having to plan every hour in advance.
+TimeEight is a personal, progress-based time tracker for seeing where your time goes. Start a timer when something begins, stop it when you are done, and build a clear record of your day without having to plan every hour in advance.
 
 [Open TimeEight](https://timeeight.vercel.app/)
 
@@ -14,7 +14,9 @@ A day can feel busy while still being difficult to explain. Traditional calendar
 
 TimeEight focuses on a simpler question: **what did you spend time on today?**
 
-It turns running timers into a readable daily picture. You can look back at individual sessions, compare days, and notice patterns without rebuilding your day from memory.
+It is built around a time-based process goal: choosing how much time you want to put into something, then making that effort visible. If you want to spend three hours on a project today, for example, the running timer shows your progress even before the project itself is finished. Completing that time goal gives the day a concrete finish line and a small win.
+
+Your completed timers become a readable daily picture. You can look back at individual sessions, compare days, and notice patterns without rebuilding your day from memory.
 
 ## Two ways to think about time
 
