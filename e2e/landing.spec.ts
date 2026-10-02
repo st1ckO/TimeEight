@@ -105,6 +105,37 @@ test("introduces TimeEight before sign-in and previews the core app", async ({
   );
 });
 
+test("keeps the sign-in section dark for an empty System theme", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/login");
+  await page.locator("html").evaluate((root) => {
+    root.dataset.theme = "";
+  });
+
+  await expect
+    .poll(() =>
+      page.locator(".landing-signin").evaluate((section) => ({
+        background: getComputedStyle(section).backgroundColor,
+        color: getComputedStyle(section).color,
+      })),
+    )
+    .toEqual({ background: "rgb(19, 32, 25)", color: "rgb(243, 248, 245)" });
+
+  await page.locator("html").evaluate((root) => {
+    root.dataset.theme = "light";
+  });
+  await expect
+    .poll(() =>
+      page.locator(".landing-signin").evaluate((section) => ({
+        background: getComputedStyle(section).backgroundColor,
+        color: getComputedStyle(section).color,
+      })),
+    )
+    .toEqual({ background: "rgb(232, 238, 233)", color: "rgb(23, 33, 29)" });
+});
+
 test("fits each landing section within a 16:9 desktop frame", async ({
   page,
 }, testInfo) => {
