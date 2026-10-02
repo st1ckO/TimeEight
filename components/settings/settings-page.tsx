@@ -73,7 +73,11 @@ const timezoneRegions = [
   "Other",
 ];
 
-export function SettingsPage() {
+export function SettingsPage({
+  accountEmail,
+}: {
+  accountEmail: string | null;
+}) {
   const app = useTimeEight();
   const displayNameId = useId();
   const displayNameHintId = useId();
@@ -347,6 +351,12 @@ export function SettingsPage() {
               history.
             </p>
           </div>
+          {accountEmail && (
+            <dl className="settings-account">
+              <dt>Google account</dt>
+              <dd title={accountEmail}>{accountEmail}</dd>
+            </dl>
+          )}
           <button
             className="secondary-button"
             disabled={!app.hydrated}

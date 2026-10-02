@@ -3473,6 +3473,30 @@ h3 {
   color: var(--muted);
   line-height: 1.6;
 }
+.settings-account {
+  display: grid;
+  gap: 4px;
+  margin: 2px 0 5px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-strong);
+}
+.settings-account dt {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+.settings-account dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .data-card button {
   display: flex;
   align-items: center;
