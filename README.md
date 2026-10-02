@@ -1,74 +1,49 @@
 # TimeEight
 
-A calm, local-first timer for intentionally spending—or limiting—time across your day.
+**Start a timer. Understand your day.**
+
+TimeEight is a personal time-awareness app for seeing where your time goes. Start a timer when something begins, stop it when you are done, and build a clear record of your day without having to plan every hour in advance.
+
+[Open TimeEight](https://timeeight.vercel.app/)
 
 ![TimeEight Today view](docs/screenshots/today-desktop.png)
 
-TimeEight tracks all chosen time without labeling leisure or work as more valuable. Build-time tasks count up toward an “at least” target; limit-time tasks count down and ask before continuing past an allowance.
+## Why TimeEight exists
 
-## What works
+A day can feel busy while still being difficult to explain. Traditional calendars show what was scheduled, but not necessarily what happened. Many time trackers are designed for billing, timesheets, or rigid productivity systems.
 
-- Concurrent, timestamp-based timers with one active timer per task.
-- IndexedDB checkpoints, offline mutations, server reconciliation, and crash recovery.
-- Reorderable task templates with keyboard and button alternatives.
-- A fixed eight-hour daily goal with preserved history, a timer-only three-hour streak, and one weekly streak saver.
-- Calendar rings, duration-based corrections, neutral records, JSON export, and deletion.
-- Supabase Auth/PostgreSQL with tested row-level security.
-- Responsive light/dark UI and an installable Serwist PWA shell.
+TimeEight focuses on a simpler question: **what did you spend time on today?**
 
-<details>
-<summary>More screenshots</summary>
+It turns running timers into a readable daily picture. You can look back at individual sessions, compare days, and notice patterns without rebuilding your day from memory.
 
-![TimeEight mobile Today view](docs/screenshots/today-mobile.png)
+## Two ways to think about time
+
+Some activities are things you want to spend more time doing. Others are things you want to keep within a boundary. TimeEight supports both:
+
+- **Build time** counts upward toward an intention, such as learning, exercising, or working on a project.
+- **Limit time** counts downward from an allowance, such as screen time or another activity you want to keep in view.
+
+Different tasks can run at the same time when real life overlaps. If a limit is reached, TimeEight pauses and lets you decide whether to continue.
+
+## Your time, from today to the bigger picture
+
+- **Today** shows what is running, how much time remains, and how the day is taking shape.
+- **Calendar** turns past days into a visual history and lets you inspect or correct individual entries.
+- **Insights** summarizes tracked time across days and tasks so longer-term patterns are easier to see.
 
 ![TimeEight Calendar view](docs/screenshots/calendar-desktop.png)
 
-</details>
+TimeEight is designed for both desktop and mobile, with light and dark themes and controls that stay usable with touch, a mouse, or a keyboard.
 
-## Stack
+<p align="center">
+  <img src="docs/screenshots/today-mobile.png" alt="TimeEight Today view on mobile" width="390" />
+</p>
 
-Next.js App Router, React, strict TypeScript, Tailwind CSS, Radix UI, Supabase, Dexie, Serwist, Zod, dnd-kit, Vitest, Playwright, pgTAP, and axe-core.
+## Made for everyday interruptions
 
-## Local setup
+Timers use their real start and stop times, so switching tabs or putting a device to sleep does not make the clock drift. Checkpoints help recover an interrupted session, and signed-in accounts can continue across devices without creating duplicate history.
 
-Requirements: Node.js 22+, pnpm 11, and Docker Desktop for the local Supabase stack.
-
-```bash
-pnpm install
-cp .env.example .env.local
-pnpm supabase start
-pnpm dev
-```
-
-Copy the local Supabase URL and publishable key into `.env.local`. The app falls back to an account-free local demo when Supabase is not configured.
-
-Useful checks:
-
-```bash
-pnpm format:check
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm test:e2e
-pnpm supabase test db
-pnpm build
-```
-
-## Architecture and security
-
-Timer, calendar, aggregation, and streak rules live in framework-independent TypeScript modules. IndexedDB is the immediate local store; UUID-backed mutations synchronize to Supabase when online. PostgreSQL derives summaries from immutable time entries rather than mutable counters.
-
-Every exposed table uses row-level security and least-privilege grants. Server clients are request-scoped, secret keys stay server-only, auth callbacks validate redirect paths, public email auth is gated behind SMTP and Turnstile configuration, and the service worker caches only static assets plus a data-free offline page. See [SECURITY.md](SECURITY.md) for reporting.
-
-## Deploying
-
-1. Create a managed Supabase project and apply `supabase/migrations` before the web release.
-2. Configure Google OAuth and exact production/preview redirect allowlists.
-3. Import the repository into Vercel and add the variables from `.env.example`.
-4. Keep `NEXT_PUBLIC_ENABLE_EMAIL_AUTH=false` until custom SMTP and Turnstile are configured.
-5. Run a preview smoke test before promoting to production. Do not run destructive migrations from preview deployments.
-
-The first public Vercel URL will be added after the production project is linked.
+You can correct past durations, export a personal backup, and remove your account when you no longer want it. TimeEight keeps the record useful without turning it into a schedule you have to obey.
 
 ## License
 

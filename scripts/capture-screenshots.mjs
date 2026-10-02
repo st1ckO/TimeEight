@@ -10,6 +10,10 @@ async function capture(name, viewport, path = "/today", ready = "Focus time") {
   const page = await context.newPage();
   await page.goto(`http://localhost:3000${path}`);
   await page.getByRole("heading", { name: ready }).waitFor();
+  await page.addStyleTag({
+    content:
+      ".sync-status-position, nextjs-portal { display: none !important; }",
+  });
   await page.screenshot({ path: `${output}/${name}.png`, fullPage: true });
   await context.close();
 }
