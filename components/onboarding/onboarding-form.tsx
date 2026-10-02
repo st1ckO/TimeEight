@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check, Clock3, MapPin } from "lucide-react";
+import { ArrowRight, Check, Clock3, LoaderCircle, MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 import { useTimeEight } from "@/components/app/app-provider";
@@ -64,15 +64,12 @@ export function OnboardingForm() {
       return;
     }
     setPending(true);
-    setMessage("Saving your setup…");
+    setMessage(null);
     setMessageIsError(false);
     try {
       await waitForOnboardingSave(
         app.completeOnboarding(profile.data, keepExamples),
       );
-      setMessage("Setup saved. Opening your day…");
-      setMessageIsError(false);
-      setShowTodayRecovery(true);
       router.replace("/today");
       router.refresh();
     } catch (error) {
@@ -89,7 +86,6 @@ export function OnboardingForm() {
         );
       }
       setMessageIsError(true);
-    } finally {
       setPending(false);
     }
   }
@@ -177,9 +173,18 @@ export function OnboardingForm() {
         <button
           className="primary-button onboarding-submit"
           disabled={pending || !app.hydrated}
+          aria-busy={pending}
         >
-          {!app.hydrated ? "Loading…" : pending ? "Saving…" : "Open my day"}
-          <ArrowRight size={18} />
+          {!app.hydrated ? "Loading…" : "Open my day"}
+          {pending ? (
+            <LoaderCircle
+              className="onboarding-submit-spinner"
+              size={18}
+              aria-hidden="true"
+            />
+          ) : (
+            <ArrowRight size={18} aria-hidden="true" />
+          )}
         </button>
       </form>
     </section>

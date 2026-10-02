@@ -3361,6 +3361,19 @@ h3 {
 .onboarding-submit {
   justify-content: center;
 }
+.onboarding-submit-spinner {
+  animation: onboarding-submit-spin 0.8s linear infinite;
+}
+@keyframes onboarding-submit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-submit-spinner {
+    animation-duration: 1.6s;
+  }
+}
 .onboarding-save-message {
   display: grid;
   gap: 8px;

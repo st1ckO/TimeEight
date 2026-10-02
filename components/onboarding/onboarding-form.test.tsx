@@ -69,10 +69,13 @@ describe("OnboardingForm", () => {
     );
     expect(replace).toHaveBeenCalledWith("/today");
     expect(refresh).toHaveBeenCalled();
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Setup saved. Opening your day…",
+    expect(screen.queryByText(/Saving your setup/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Setup saved/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open my day" })).toHaveAttribute(
+      "aria-busy",
+      "true",
     );
-    expect(screen.getByRole("button", { name: "Open my day" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Open my day" })).toBeDisabled();
   });
 
   it("exposes the display-name length limit", () => {
@@ -121,13 +124,24 @@ describe("OnboardingForm", () => {
       render(<OnboardingForm />);
 
       fireEvent.click(screen.getByRole("button", { name: "Open my day" }));
-      expect(screen.getByRole("status")).toHaveTextContent(
-        "Saving your setup…",
-      );
+      expect(screen.queryByText(/Saving your setup/i)).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Open my day" }),
+      ).toHaveAttribute("aria-busy", "true");
+      expect(
+        document.querySelector(".onboarding-submit-spinner"),
+      ).toBeInTheDocument();
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(ONBOARDING_SAVE_TIMEOUT_MS);
       });
+
+      expect(
+        screen.getByRole("button", { name: "Open my day" }),
+      ).toHaveAttribute("aria-busy", "false");
+      expect(
+        document.querySelector(".onboarding-submit-spinner"),
+      ).not.toBeInTheDocument();
 
       expect(screen.getByRole("alert")).toHaveTextContent(
         "Your setup may already be saved.",
