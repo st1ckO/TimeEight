@@ -137,12 +137,16 @@ describe("TaskDialog", () => {
     expect(
       screen.getByRole("button", { name: "Use rose color" }),
     ).toHaveAttribute("aria-pressed", "true");
+    await user.clear(screen.getByLabelText("Hours"));
+    await user.type(screen.getByLabelText("Hours"), "1");
+    await user.clear(screen.getByLabelText("Minutes"));
+    await user.type(screen.getByLabelText("Minutes"), "30");
     await user.click(screen.getByRole("button", { name: "Add task" }));
 
     expect(onSave).toHaveBeenCalledWith({
       name: "Read a book",
       goalKind: "limit",
-      targetSeconds: 3600,
+      targetSeconds: 5400,
       color: "#c65b8c",
     });
     expect(onOpenChange).toHaveBeenCalledWith(false);

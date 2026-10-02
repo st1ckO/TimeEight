@@ -1126,6 +1126,14 @@ h3 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
+.task-target-fields {
+  display: grid;
+  gap: 8px;
+}
+.task-target-fields legend {
+  margin-bottom: 8px;
+  padding: 0;
+}
 .saved-task-settings summary {
   display: list-item;
   min-height: 44px;

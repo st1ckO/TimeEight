@@ -147,16 +147,37 @@ function TaskForm({
         </div>
       </fieldset>
       {!todayEditor && (
-        <label>
-          {task ? "Default daily target in minutes" : "Daily target in minutes"}
-          <input
-            type="number"
-            min={1}
-            max={1440}
-            value={minutes}
-            onChange={(event) => setMinutes(Number(event.target.value))}
-          />
-        </label>
+        <fieldset className="task-target-fields">
+          <legend>{task ? "Default daily target" : "Daily target"}</legend>
+          <div className="allotment-duration">
+            <label>
+              Hours
+              <input
+                type="number"
+                min={0}
+                max={24}
+                value={Math.floor(minutes / 60)}
+                onChange={(event) =>
+                  setMinutes(Number(event.target.value) * 60 + (minutes % 60))
+                }
+              />
+            </label>
+            <label>
+              Minutes
+              <input
+                type="number"
+                min={0}
+                max={59}
+                value={minutes % 60}
+                onChange={(event) =>
+                  setMinutes(
+                    Math.floor(minutes / 60) * 60 + Number(event.target.value),
+                  )
+                }
+              />
+            </label>
+          </div>
+        </fieldset>
       )}
       <fieldset>
         <legend>Color</legend>
