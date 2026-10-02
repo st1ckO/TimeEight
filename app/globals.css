@@ -2887,7 +2887,8 @@ h3 {
   align-items: center;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) .landing-signin {
+  :root:not([data-theme]) .landing-signin,
+  :root[data-theme=""] .landing-signin {
     --landing-signin-background: #132019;
     --landing-signin-ink: #f3f8f5;
     --landing-signin-muted: #a9b9b0;
