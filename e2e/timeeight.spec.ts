@@ -657,7 +657,10 @@ test("keeps calendar entry controls balanced in both themes", async ({
       await expect(dialog).toContainText(
         "Added or corrected time counts toward daily totals, but not the three-hour streak.",
       );
-      await dialog.getByLabel("Hours", { exact: true }).fill("0");
+      const hours = dialog.getByLabel("Hours", { exact: true });
+      await hours.click();
+      await expect(hours).toHaveValue("");
+      await hours.pressSequentially("0");
       await dialog.getByLabel("Minutes", { exact: true }).fill("15");
       const scan = await new AxeBuilder({ page })
         .include('[role="dialog"]')
@@ -1221,7 +1224,10 @@ test("shares today's editor, preserves daily choices, and uses defaults tomorrow
   await target.click();
   let editor = page.getByRole("dialog", { name: "Edit task", exact: true });
   await editor.getByLabel("Hours", { exact: true }).fill("0");
-  await editor.getByLabel("Minutes", { exact: true }).fill("20");
+  const minutes = editor.getByLabel("Minutes", { exact: true });
+  await minutes.click();
+  await expect(minutes).toHaveValue("");
+  await minutes.pressSequentially("20");
   await editor.getByRole("button", { name: "Save changes" }).click();
   await expect(target).toHaveText("of 20m");
   await page.getByRole("button", { name: "Actions for Focus time" }).click();
@@ -1241,10 +1247,9 @@ test("shares today's editor, preserves daily choices, and uses defaults tomorrow
     .getByRole("button", { name: "Edit saved task Focus time" })
     .click();
   editor = page.getByRole("dialog", { name: "Edit task", exact: true });
-  await expect(
-    editor.getByLabel("Default daily target in minutes"),
-  ).toHaveValue("20");
-  await editor.getByLabel("Default daily target in minutes").fill("45");
+  await expect(editor.getByLabel("Hours", { exact: true })).toHaveValue("0");
+  await expect(editor.getByLabel("Minutes", { exact: true })).toHaveValue("20");
+  await editor.getByLabel("Minutes", { exact: true }).fill("45");
   await editor.getByRole("button", { name: "Save changes" }).click();
   await library.getByRole("button", { name: "Close task list" }).click();
   await expect(target).toHaveText("of 20m");
@@ -1533,7 +1538,10 @@ test("reverts a timer correction to restore streak eligibility", async ({
     .getByRole("button", { name: "Entry actions for Focus time" })
     .click();
   await page.getByRole("menuitem", { name: "Edit entry", exact: true }).click();
-  await page.getByLabel("Hours").fill("1");
+  const correctionHours = page.getByLabel("Hours");
+  await correctionHours.click();
+  await expect(correctionHours).toHaveValue("");
+  await correctionHours.pressSequentially("1");
   await page.getByLabel("Minutes").fill("0");
   await page.getByRole("button", { name: "Save correction" }).click();
   await expect(

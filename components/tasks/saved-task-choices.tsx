@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Task } from "@/lib/domain/types";
 import { formatDuration } from "@/lib/domain/time";
 import { taskDailyTargetSchema } from "@/lib/domain/schemas";
+import { ZeroClearingNumberInput } from "@/components/ui/zero-clearing-number-input";
 
 export function SavedTaskChoices({
   tasks,
@@ -112,13 +113,12 @@ export function SavedTaskChoices({
             {adjusting === task.id && (
               <label className="saved-allotment-input">
                 Today’s allotment in minutes
-                <input
+                <ZeroClearingNumberInput
                   aria-label="Today’s allotment in minutes"
-                  type="number"
                   min={1}
                   max={1440}
                   value={minutes}
-                  onChange={(event) => setMinutes(Number(event.target.value))}
+                  onValueChange={setMinutes}
                 />
                 <span className="form-hint">
                   Today only; the saved default stays unchanged.
