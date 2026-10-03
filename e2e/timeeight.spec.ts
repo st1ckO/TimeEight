@@ -193,6 +193,12 @@ test("requires confirmation before signing out", async ({ page }) => {
   const name = page.getByLabel("Display name", { exact: true });
   await name.fill("Sign-out test");
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Saved", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Changes saved." }),
+  ).toBeVisible();
   const trigger = page.getByRole("button", { name: "Sign out", exact: true });
   await trigger.click();
   const dialog = page.getByRole("dialog", { name: "Sign out?", exact: true });
