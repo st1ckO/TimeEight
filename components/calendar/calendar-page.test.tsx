@@ -84,12 +84,20 @@ describe("CalendarPage corrections", () => {
     } as unknown as ReturnType<typeof useTimeEight>);
   });
 
-  it("uses goal credit for rings while retaining full tracked history totals", () => {
-    render(<CalendarPage />);
+  it("uses capped goal credit for rings and calendar totals", () => {
+    const { container } = render(<CalendarPage />);
     expect(
       screen.getByRole("img", { name: "2026-09-12: 30m toward 8h 0m goal" }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("1h 0m").length).toBeGreaterThan(0);
+    expect(
+      container.querySelector(".calendar-day.selected .day-time"),
+    ).toHaveTextContent("30m");
+    expect(container.querySelector(".day-total strong")).toHaveTextContent(
+      "30m",
+    );
+    expect(container.querySelectorAll(".history-entry > strong")).toHaveLength(
+      2,
+    );
   });
 
   it("switches from individual history to per-task daily totals", async () => {

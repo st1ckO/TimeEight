@@ -157,7 +157,6 @@ export function CalendarPage() {
           </div>
           <div className="calendar-grid">
             {cells.map((date) => {
-              const seconds = app.totals.get(date) ?? 0;
               const goalSeconds = app.goalTotals.get(date) ?? 0;
               const goal = goalForDate(
                 app.dailyGoals,
@@ -190,7 +189,7 @@ export function CalendarPage() {
                     />
                   )}
                   <span className="day-time">
-                    {seconds ? formatDuration(seconds) : "—"}
+                    {goalSeconds ? formatDuration(goalSeconds) : "—"}
                   </span>
                 </button>
               );
@@ -205,7 +204,7 @@ export function CalendarPage() {
             </div>
             <div className="day-total">
               <strong>
-                {formatDuration(app.totals.get(selectedDate) ?? 0)}
+                {formatDuration(app.goalTotals.get(selectedDate) ?? 0)}
               </strong>
               <span>
                 tracked against{" "}
