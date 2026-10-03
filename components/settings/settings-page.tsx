@@ -230,10 +230,16 @@ export function SettingsPage({
       <div className="settings-grid">
         <form className="settings-card settings-form" onSubmit={save}>
           {accountEmail && (
-            <dl className="settings-account">
-              <dt>Google account</dt>
-              <dd title={accountEmail}>{accountEmail}</dd>
-            </dl>
+            <div className="settings-account">
+              <span
+                className="google-mark settings-account-mark"
+                aria-hidden="true"
+              />
+              <dl>
+                <dt>Signed in with Google</dt>
+                <dd title={accountEmail}>{accountEmail}</dd>
+              </dl>
+            </div>
           )}
           <div className="settings-field">
             <label htmlFor={displayNameId}>Display name</label>

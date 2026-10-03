@@ -3475,17 +3475,31 @@ h3 {
 }
 .settings-account {
   display: grid;
-  gap: 4px;
-  margin: 2px 0 5px;
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface-strong);
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 0 0 18px;
+  border-bottom: 1px solid var(--line);
+}
+.settings-account-mark {
+  width: 34px;
+  height: 34px;
+  border: 1px solid #dadce0;
+  border-radius: 50%;
+  background-color: #ffffff;
+  background-size: 18px;
+}
+.settings-account dl {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  margin: 0;
 }
 .settings-account dt {
   color: var(--muted);
-  font-size: 0.76rem;
-  font-weight: 700;
+  font-size: 0.74rem;
+  font-weight: 650;
 }
 .settings-account dd {
   min-width: 0;
@@ -3493,7 +3507,7 @@ h3 {
   overflow: hidden;
   color: var(--ink);
   font-size: 0.9rem;
-  font-weight: 650;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

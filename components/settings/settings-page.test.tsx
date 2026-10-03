@@ -34,7 +34,7 @@ describe("SettingsPage", () => {
   it("shows the Google email above the display name", () => {
     render(<SettingsPage accountEmail="person@example.com" />);
 
-    const accountLabel = screen.getByText("Google account");
+    const accountLabel = screen.getByText("Signed in with Google");
     const accountEmail = screen.getByText("person@example.com");
     const displayName = screen.getByLabelText("Display name");
 
