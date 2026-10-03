@@ -229,6 +229,12 @@ export function SettingsPage({
       </header>
       <div className="settings-grid">
         <form className="settings-card settings-form" onSubmit={save}>
+          {accountEmail && (
+            <dl className="settings-account">
+              <dt>Google account</dt>
+              <dd title={accountEmail}>{accountEmail}</dd>
+            </dl>
+          )}
           <div className="settings-field">
             <label htmlFor={displayNameId}>Display name</label>
             <input
@@ -351,12 +357,6 @@ export function SettingsPage({
               history.
             </p>
           </div>
-          {accountEmail && (
-            <dl className="settings-account">
-              <dt>Google account</dt>
-              <dd title={accountEmail}>{accountEmail}</dd>
-            </dl>
-          )}
           <button
             className="secondary-button"
             disabled={!app.hydrated}

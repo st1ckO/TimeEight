@@ -31,10 +31,19 @@ vi.mock("@/components/app/app-provider", () => ({
 }));
 
 describe("SettingsPage", () => {
-  it("shows the Google email used for the account", () => {
+  it("shows the Google email above the display name", () => {
     render(<SettingsPage accountEmail="person@example.com" />);
 
-    expect(screen.getByText("Google account")).toBeInTheDocument();
-    expect(screen.getByText("person@example.com")).toBeInTheDocument();
+    const accountLabel = screen.getByText("Google account");
+    const accountEmail = screen.getByText("person@example.com");
+    const displayName = screen.getByLabelText("Display name");
+
+    expect(accountLabel).toBeInTheDocument();
+    expect(accountEmail).toBeInTheDocument();
+    expect(accountEmail.closest("form")).toBe(displayName.closest("form"));
+    expect(
+      accountEmail.compareDocumentPosition(displayName) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });
