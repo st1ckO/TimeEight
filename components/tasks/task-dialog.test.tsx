@@ -46,6 +46,12 @@ describe("TaskDialog", () => {
     ).not.toHaveAttribute("open");
     await user.click(screen.getByText("Saved-task settings"));
     expect(screen.getByLabelText("Task name")).toHaveValue("Reading");
+    const hours = screen.getByLabelText("Hours");
+    expect(hours).toHaveValue(0);
+    await user.click(hours);
+    expect(hours).toHaveValue(null);
+    await user.type(hours, "1");
+    expect(hours).toHaveValue(1);
     await user.click(screen.getByRole("button", { name: "Reset to default" }));
     expect(screen.getByLabelText("Hours")).toHaveValue(1);
     await user.click(screen.getByRole("button", { name: "−15 min" }));
@@ -137,12 +143,19 @@ describe("TaskDialog", () => {
     expect(
       screen.getByRole("button", { name: "Use rose color" }),
     ).toHaveAttribute("aria-pressed", "true");
+    await user.clear(screen.getByLabelText("Hours"));
+    await user.type(screen.getByLabelText("Hours"), "1");
+    const minutes = screen.getByLabelText("Minutes");
+    expect(minutes).toHaveValue(0);
+    await user.click(minutes);
+    expect(minutes).toHaveValue(null);
+    await user.type(minutes, "30");
     await user.click(screen.getByRole("button", { name: "Add task" }));
 
     expect(onSave).toHaveBeenCalledWith({
       name: "Read a book",
       goalKind: "limit",
-      targetSeconds: 3600,
+      targetSeconds: 5400,
       color: "#c65b8c",
     });
     expect(onOpenChange).toHaveBeenCalledWith(false);

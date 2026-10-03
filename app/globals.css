@@ -1126,6 +1126,14 @@ h3 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
+.task-target-fields {
+  display: grid;
+  gap: 8px;
+}
+.task-target-fields legend {
+  margin-bottom: 8px;
+  padding: 0;
+}
 .saved-task-settings summary {
   display: list-item;
   min-height: 44px;
@@ -2887,7 +2895,8 @@ h3 {
   align-items: center;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) .landing-signin {
+  :root:not([data-theme]) .landing-signin,
+  :root[data-theme=""] .landing-signin {
     --landing-signin-background: #132019;
     --landing-signin-ink: #f3f8f5;
     --landing-signin-muted: #a9b9b0;
@@ -3361,6 +3370,19 @@ h3 {
 .onboarding-submit {
   justify-content: center;
 }
+.onboarding-submit-spinner {
+  animation: onboarding-submit-spin 0.8s linear infinite;
+}
+@keyframes onboarding-submit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-submit-spinner {
+    animation-duration: 1.6s;
+  }
+}
 .onboarding-save-message {
   display: grid;
   gap: 8px;
@@ -3450,6 +3472,44 @@ h3 {
 .data-card p {
   color: var(--muted);
   line-height: 1.6;
+}
+.settings-account {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 0 0 18px;
+  border-bottom: 1px solid var(--line);
+}
+.settings-account-mark {
+  width: 34px;
+  height: 34px;
+  border: 1px solid #dadce0;
+  border-radius: 50%;
+  background-color: #ffffff;
+  background-size: 18px;
+}
+.settings-account dl {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  margin: 0;
+}
+.settings-account dt {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 650;
+}
+.settings-account dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .data-card button {
   display: flex;

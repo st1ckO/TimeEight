@@ -4,6 +4,7 @@ import * as Select from "@radix-ui/react-select";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Check, ChevronDown, X } from "lucide-react";
 import { useId, useState } from "react";
+import { ZeroClearingNumberInput } from "@/components/ui/zero-clearing-number-input";
 import type { Task, TimeEntry } from "@/lib/domain/types";
 
 function EntryForm({
@@ -102,23 +103,21 @@ function EntryForm({
         <div className="duration-fields">
           <label>
             Duration (hours)
-            <input
-              type="number"
+            <ZeroClearingNumberInput
               min={0}
               max={24}
               aria-label="Hours"
               value={hours}
-              onChange={(event) => setHours(Number(event.target.value))}
+              onValueChange={setHours}
             />
           </label>
           <label>
             Minutes
-            <input
-              type="number"
+            <ZeroClearingNumberInput
               min={0}
               max={59}
               value={minutes}
-              onChange={(event) => setMinutes(Number(event.target.value))}
+              onValueChange={setMinutes}
             />
           </label>
         </div>

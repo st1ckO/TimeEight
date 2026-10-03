@@ -7,6 +7,7 @@ import type { GoalKind, Task } from "@/lib/domain/types";
 import { taskSchema } from "@/lib/domain/schemas";
 import { SavedTaskChoices } from "./saved-task-choices";
 import { AnimatedHeight } from "@/components/ui/animated-height";
+import { ZeroClearingNumberInput } from "@/components/ui/zero-clearing-number-input";
 import { allotmentStopsTimer } from "@/lib/domain/task-targets";
 import { formatDuration } from "@/lib/domain/time";
 
@@ -147,16 +148,33 @@ function TaskForm({
         </div>
       </fieldset>
       {!todayEditor && (
-        <label>
-          {task ? "Default daily target in minutes" : "Daily target in minutes"}
-          <input
-            type="number"
-            min={1}
-            max={1440}
-            value={minutes}
-            onChange={(event) => setMinutes(Number(event.target.value))}
-          />
-        </label>
+        <fieldset className="task-target-fields">
+          <legend>{task ? "Default daily target" : "Daily target"}</legend>
+          <div className="allotment-duration">
+            <label>
+              Hours
+              <ZeroClearingNumberInput
+                min={0}
+                max={24}
+                value={Math.floor(minutes / 60)}
+                onValueChange={(value) =>
+                  setMinutes(value * 60 + (minutes % 60))
+                }
+              />
+            </label>
+            <label>
+              Minutes
+              <ZeroClearingNumberInput
+                min={0}
+                max={59}
+                value={minutes % 60}
+                onValueChange={(value) =>
+                  setMinutes(Math.floor(minutes / 60) * 60 + value)
+                }
+              />
+            </label>
+          </div>
+        </fieldset>
       )}
       <fieldset>
         <legend>Color</legend>
@@ -194,29 +212,25 @@ function TaskForm({
           <div className="allotment-duration">
             <label>
               Hours
-              <input
-                type="number"
+              <ZeroClearingNumberInput
                 autoFocus
                 min={0}
                 max={24}
                 value={Math.floor(minutes / 60)}
-                onChange={(event) => {
-                  setMinutes(Number(event.target.value) * 60 + (minutes % 60));
+                onValueChange={(value) => {
+                  setMinutes(value * 60 + (minutes % 60));
                   setConfirmStop(false);
                 }}
               />
             </label>
             <label>
               Minutes
-              <input
-                type="number"
+              <ZeroClearingNumberInput
                 min={0}
                 max={59}
                 value={minutes % 60}
-                onChange={(event) => {
-                  setMinutes(
-                    Math.floor(minutes / 60) * 60 + Number(event.target.value),
-                  );
+                onValueChange={(value) => {
+                  setMinutes(Math.floor(minutes / 60) * 60 + value);
                   setConfirmStop(false);
                 }}
               />

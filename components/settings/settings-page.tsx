@@ -73,7 +73,11 @@ const timezoneRegions = [
   "Other",
 ];
 
-export function SettingsPage() {
+export function SettingsPage({
+  accountEmail,
+}: {
+  accountEmail: string | null;
+}) {
   const app = useTimeEight();
   const displayNameId = useId();
   const displayNameHintId = useId();
@@ -225,6 +229,18 @@ export function SettingsPage() {
       </header>
       <div className="settings-grid">
         <form className="settings-card settings-form" onSubmit={save}>
+          {accountEmail && (
+            <div className="settings-account">
+              <span
+                className="google-mark settings-account-mark"
+                aria-hidden="true"
+              />
+              <dl>
+                <dt>Signed in with Google</dt>
+                <dd title={accountEmail}>{accountEmail}</dd>
+              </dl>
+            </div>
+          )}
           <div className="settings-field">
             <label htmlFor={displayNameId}>Display name</label>
             <input

@@ -89,7 +89,12 @@ test("upgrades existing task data and freezes historical targets before default 
     .getByRole("button", { name: "Edit saved task Legacy reading" })
     .click();
   const editor = page.getByRole("dialog", { name: "Edit task", exact: true });
-  await editor.getByLabel("Default daily target in minutes").fill("120");
+  const hours = editor.getByLabel("Hours", { exact: true });
+  const minutes = editor.getByLabel("Minutes", { exact: true });
+  await expect(hours).toHaveValue("1");
+  await expect(minutes).toHaveValue("0");
+  await hours.fill("2");
+  await minutes.fill("0");
   await editor.getByRole("button", { name: "Save changes" }).click();
   await library.getByRole("button", { name: "Close task list" }).click();
   await expect(
