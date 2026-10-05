@@ -5,6 +5,7 @@ import {
   elapsedSeconds,
   elapsedSecondsForDate,
   formatDuration,
+  formatStopwatchDuration,
   goalForDate,
   splitDurationAcrossLocalDates,
 } from "./time";
@@ -18,6 +19,12 @@ describe("time domain", () => {
     expect(elapsedSeconds(timer, Date.parse("2026-09-11T00:01:10.000Z"))).toBe(
       100,
     );
+  });
+
+  it("formats compact stopwatch time for the browser tab", () => {
+    expect(formatStopwatchDuration(0)).toBe("0:00");
+    expect(formatStopwatchDuration(24 * 60 + 26)).toBe("24:26");
+    expect(formatStopwatchDuration(3723)).toBe("1:02:03");
   });
 
   it("splits a running timer at local midnight", () => {
