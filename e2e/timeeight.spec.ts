@@ -876,6 +876,9 @@ test("shows concurrent sessions in the active card and pauses them", async ({
   await page
     .getByRole("button", { name: "Start Focus time", exact: true })
     .click();
+  await expect(page).toHaveTitle(/^0:0\d · TimeEight$/);
+  const initialTitle = await page.title();
+  await expect.poll(() => page.title()).not.toBe(initialTitle);
   await page
     .getByRole("button", { name: "Start Learning", exact: true })
     .click();
@@ -931,6 +934,7 @@ test("shows concurrent sessions in the active card and pauses them", async ({
   await expect(
     page.locator(".task-list").getByRole("button", { name: /^Pause / }),
   ).toHaveCount(0);
+  await expect(page).toHaveTitle("TimeEight");
 });
 test("centers the reached-limit confirmation and continues only by choice", async ({
   page,

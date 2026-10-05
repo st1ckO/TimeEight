@@ -84,6 +84,17 @@ export function formatDuration(
   return `${seconds}s`;
 }
 
+export function formatStopwatchDuration(totalSeconds: number): string {
+  const safe = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(safe / 3600);
+  const minutes = Math.floor((safe % 3600) / 60);
+  const seconds = String(safe % 60).padStart(2, "0");
+
+  if (hours > 0)
+    return `${hours}:${String(minutes).padStart(2, "0")}:${seconds}`;
+  return `${minutes}:${seconds}`;
+}
+
 export function formatSignedDuration(
   seconds: number,
   options: { clock?: boolean } = {},

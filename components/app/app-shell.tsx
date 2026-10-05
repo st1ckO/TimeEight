@@ -7,6 +7,7 @@ import { BrandWordmark } from "@/components/ui/brand-wordmark";
 import { AppNotification } from "./app-notification";
 import { useTimeEight } from "./app-provider";
 import { SyncStatus } from "./sync-status";
+import { TimerDocumentTitle } from "./timer-document-title";
 import { TimerRecoveryDialog } from "./timer-recovery-dialog";
 import { WebMcpTools } from "./webmcp-tools";
 
@@ -42,6 +43,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app-frame">
+      <TimerDocumentTitle />
       <WebMcpTools />
       <aside className="sidebar">
         <Link className="brand" href="/today" aria-label="Time eIghT home">
