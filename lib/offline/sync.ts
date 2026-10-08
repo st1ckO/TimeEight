@@ -301,6 +301,62 @@ export interface RemoteSnapshot {
   entries: TimeEntry[];
 }
 
+type ActiveTimerRow = Database["public"]["Tables"]["active_timers"]["Row"];
+type TimeEntryRow = Database["public"]["Tables"]["time_entries"]["Row"];
+
+function fromActiveTimerRow(row: ActiveTimerRow): ActiveTimer {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    taskId: row.task_id,
+    startedAt: row.started_at,
+    timezone: row.timezone,
+    accumulatedSeconds: row.accumulated_seconds,
+    checkpointedAt: row.checkpointed_at,
+    checkpointSeconds: row.checkpoint_seconds,
+    limitOverride: row.limit_override,
+    mutationId: row.mutation_id,
+  };
+}
+
+function fromTimeEntryRow(row: TimeEntryRow): TimeEntry {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    taskId: row.task_id,
+    localDate: row.local_date,
+    durationSeconds: row.duration_seconds,
+    source: row.source,
+    startedAt: row.started_at,
+    endedAt: row.ended_at,
+    manuallyAdjusted: row.manually_adjusted,
+    correctionOriginalTaskId: row.correction_original_task_id,
+    correctionOriginalLocalDate: row.correction_original_local_date,
+    correctionOriginalDurationSeconds: row.correction_original_duration_seconds,
+    mutationId: row.mutation_id,
+  };
+}
+
+export async function loadRemoteActiveTimers(
+  userId: string,
+): Promise<ActiveTimer[]> {
+  const { data, error } = await createClient()
+    .from("active_timers")
+    .select("*")
+    .eq("user_id", userId);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(fromActiveTimerRow);
+}
+
+export async function loadRemoteEntries(userId: string): Promise<TimeEntry[]> {
+  const { data, error } = await createClient()
+    .from("time_entries")
+    .select("*")
+    .eq("user_id", userId);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(fromTimeEntryRow);
+}
+
 export async function loadRemoteSnapshot(
   userId: string,
 ): Promise<RemoteSnapshot> {
@@ -367,34 +423,8 @@ export async function loadRemoteSnapshot(
       archivedAt: row.archived_at,
       onDailyList: row.on_daily_list,
     })),
-    activeTimers: (timersResult.data ?? []).map((row) => ({
-      id: row.id,
-      userId: row.user_id,
-      taskId: row.task_id,
-      startedAt: row.started_at,
-      timezone: row.timezone,
-      accumulatedSeconds: row.accumulated_seconds,
-      checkpointedAt: row.checkpointed_at,
-      checkpointSeconds: row.checkpoint_seconds,
-      limitOverride: row.limit_override,
-      mutationId: row.mutation_id,
-    })),
-    entries: (entriesResult.data ?? []).map((row) => ({
-      id: row.id,
-      userId: row.user_id,
-      taskId: row.task_id,
-      localDate: row.local_date,
-      durationSeconds: row.duration_seconds,
-      source: row.source,
-      startedAt: row.started_at,
-      endedAt: row.ended_at,
-      manuallyAdjusted: row.manually_adjusted,
-      correctionOriginalTaskId: row.correction_original_task_id,
-      correctionOriginalLocalDate: row.correction_original_local_date,
-      correctionOriginalDurationSeconds:
-        row.correction_original_duration_seconds,
-      mutationId: row.mutation_id,
-    })),
+    activeTimers: (timersResult.data ?? []).map(fromActiveTimerRow),
+    entries: (entriesResult.data ?? []).map(fromTimeEntryRow),
   };
 }
 

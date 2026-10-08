@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "@/lib/supabase/browser";
 import { getLocalDatabase } from "./db";
 import type { PendingMutation } from "./db";
-import { checkpointRemoteTimer, syncPendingMutations } from "./sync";
+import {
+  checkpointRemoteTimer,
+  loadRemoteActiveTimers,
+  loadRemoteEntries,
+  syncPendingMutations,
+} from "./sync";
 
 vi.mock("@/lib/supabase/browser", () => ({ createClient: vi.fn() }));
 vi.mock("./db", () => ({ getLocalDatabase: vi.fn() }));
@@ -162,6 +167,73 @@ describe("offline daily-list changes", () => {
     expect(eq).toHaveBeenCalledWith("id", timer.id);
     expect(eq).toHaveBeenCalledWith("user_id", timer.userId);
     expect(select).toHaveBeenCalledWith("id");
+  });
+
+  it("loads only owner-filtered timers for routine reconciliation", async () => {
+    const ownerFilter = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          user_id: "user-1",
+          task_id: state.payload.id,
+          started_at: "2026-09-29T01:00:00.000Z",
+          timezone: "Asia/Manila",
+          accumulated_seconds: 0,
+          checkpointed_at: "2026-09-29T01:01:00.000Z",
+          checkpoint_seconds: 60,
+          limit_override: false,
+          mutation_id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        },
+      ],
+      error: null,
+    });
+    select.mockReturnValueOnce({ eq: ownerFilter });
+
+    expect(await loadRemoteActiveTimers("user-1")).toEqual([
+      expect.objectContaining({
+        userId: "user-1",
+        checkpointSeconds: 60,
+      }),
+    ]);
+    expect(from).toHaveBeenCalledTimes(1);
+    expect(from).toHaveBeenCalledWith("active_timers");
+    expect(select).toHaveBeenCalledWith("*");
+    expect(ownerFilter).toHaveBeenCalledWith("user_id", "user-1");
+  });
+
+  it("loads owner-filtered history only when reconciliation needs it", async () => {
+    const ownerFilter = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+          user_id: "user-1",
+          task_id: state.payload.id,
+          local_date: "2026-09-29",
+          duration_seconds: 60,
+          source: "timer",
+          started_at: "2026-09-29T01:00:00.000Z",
+          ended_at: "2026-09-29T01:01:00.000Z",
+          manually_adjusted: false,
+          correction_original_task_id: null,
+          correction_original_local_date: null,
+          correction_original_duration_seconds: null,
+          mutation_id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        },
+      ],
+      error: null,
+    });
+    select.mockReturnValueOnce({ eq: ownerFilter });
+
+    expect(await loadRemoteEntries("user-1")).toEqual([
+      expect.objectContaining({
+        userId: "user-1",
+        durationSeconds: 60,
+      }),
+    ]);
+    expect(from).toHaveBeenCalledTimes(1);
+    expect(from).toHaveBeenCalledWith("time_entries");
+    expect(select).toHaveBeenCalledWith("*");
+    expect(ownerFilter).toHaveBeenCalledWith("user_id", "user-1");
   });
 
   it("creates snapshots without overwriting another device's chosen target", async () => {
