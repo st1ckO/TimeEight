@@ -70,6 +70,8 @@ import {
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import {
   checkpointRemoteTimer,
+  loadRemoteActiveTimers,
+  loadRemoteEntries,
   loadRemoteSnapshot,
   syncPendingMutations,
 } from "@/lib/offline/sync";
@@ -90,6 +92,8 @@ import {
 import { withUserDataLock } from "@/lib/offline/user-data-lock";
 
 const palette = ["#197c67", "#5577dc", "#d58c33", "#a45cc4", "#d86464"];
+const LOCAL_TIMER_CHECKPOINT_INTERVAL_MS = 15_000;
+const REMOTE_TIMER_CHECKPOINT_INTERVAL_MS = 60_000;
 
 function todayKey(timezone: string) {
   return localDateAt(Date.now(), timezone);
@@ -630,8 +634,8 @@ export function AppProvider({
       try {
         const db = getLocalDatabase();
         if (!db) return false;
-        const [snapshot, pendingStarts] = await Promise.all([
-          loadRemoteSnapshot(userId),
+        const [remoteTimers, pendingStarts] = await Promise.all([
+          loadRemoteActiveTimers(userId),
           db.pendingMutations
             .filter(
               (mutation) =>
@@ -646,26 +650,27 @@ export function AppProvider({
         );
         const stoppedTimers = localTimersStoppedRemotely(
           activeRef.current,
-          snapshot.activeTimers,
+          remoteTimers,
           pendingStartTimerIds,
         );
         if (stoppedTimers.length === 0) return false;
 
+        const remoteEntries = await loadRemoteEntries(userId);
         const stoppedIds = new Set(stoppedTimers.map((timer) => timer.id));
         await db.transaction(
           "rw",
           [db.activeTimers, db.timeEntries],
           async () => {
             await db.activeTimers.bulkDelete([...stoppedIds]);
-            if (snapshot.entries.length > 0)
-              await db.timeEntries.bulkPut(snapshot.entries);
+            if (remoteEntries.length > 0)
+              await db.timeEntries.bulkPut(remoteEntries);
           },
         );
         activeRef.current = activeRef.current.filter(
           (timer) => !stoppedIds.has(timer.id),
         );
         setActiveTimers(activeRef.current);
-        setEntries((current) => mergeEntriesById(current, snapshot.entries));
+        setEntries((current) => mergeEntriesById(current, remoteEntries));
         return true;
       } catch {
         updateSyncStatus("error", "Timer status could not be refreshed.");
@@ -961,20 +966,36 @@ export function AppProvider({
         checkpointedAt,
         checkpointSeconds: elapsedSeconds(timer),
       }));
+      activeRef.current = next;
       setActiveTimers(next);
       void db.activeTimers.bulkPut(next);
-      if (
-        isSupabaseConfigured() &&
-        userId !== "local-demo" &&
-        navigator.onLine
-      ) {
-        for (const timer of next)
-          void checkpointRemoteTimer(timer).then((result) => {
-            if (!result.error && (result.data?.length ?? 0) === 0)
-              void reconcileRemoteTimerState();
-          });
+    }, LOCAL_TIMER_CHECKPOINT_INTERVAL_MS);
+    return () => window.clearInterval(checkpoint);
+  }, [activeTimers.length]);
+
+  useEffect(() => {
+    if (
+      activeTimers.length === 0 ||
+      !isSupabaseConfigured() ||
+      userId === "local-demo"
+    ) {
+      return;
+    }
+    const checkpoint = window.setInterval(() => {
+      if (restoringRef.current || !navigator.onLine) return;
+      const checkpointedAt = new Date().toISOString();
+      for (const timer of activeRef.current) {
+        const remoteCheckpoint = {
+          ...timer,
+          checkpointedAt,
+          checkpointSeconds: elapsedSeconds(timer),
+        };
+        void checkpointRemoteTimer(remoteCheckpoint).then((result) => {
+          if (!result.error && (result.data?.length ?? 0) === 0)
+            void reconcileRemoteTimerState();
+        });
       }
-    }, 15_000);
+    }, REMOTE_TIMER_CHECKPOINT_INTERVAL_MS);
     return () => window.clearInterval(checkpoint);
   }, [activeTimers.length, reconcileRemoteTimerState, userId]);
 
