@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { Task, TimeEntry } from "@/lib/domain/types";
@@ -86,5 +86,66 @@ describe("EntryDialog duration inputs", () => {
       localDate: "2026-10-03",
       durationSeconds: 4_500,
     });
+  });
+
+  it("submits added time only once while saving", async () => {
+    let finishSave: (() => void) | undefined;
+    const onSave = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishSave = resolve;
+        }),
+    );
+    const onOpenChange = vi.fn();
+    render(
+      <EntryDialog
+        open
+        onOpenChange={onOpenChange}
+        date="2026-10-03"
+        tasks={[task]}
+        onSave={onSave}
+      />,
+    );
+    const button = screen.getByRole("button", { name: "Add time" });
+    const form = button.closest("form");
+    expect(form).not.toBeNull();
+
+    fireEvent.submit(form!);
+    fireEvent.submit(form!);
+    fireEvent.submit(form!);
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(button).toBeDisabled();
+    expect(form).toHaveAttribute("aria-busy", "true");
+
+    finishSave?.();
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+  });
+
+  it("allows another attempt after a save failure", async () => {
+    const user = userEvent.setup();
+    const onSave = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce(undefined);
+    render(
+      <EntryDialog
+        open
+        onOpenChange={vi.fn()}
+        date="2026-10-03"
+        tasks={[task]}
+        onSave={onSave}
+      />,
+    );
+    const button = screen.getByRole("button", { name: "Add time" });
+
+    await user.click(button);
+    expect(
+      await screen.findByText("Time could not be saved. Please try again."),
+    ).toBeVisible();
+    expect(button).toBeEnabled();
+
+    await user.click(button);
+    expect(onSave).toHaveBeenCalledTimes(2);
   });
 });

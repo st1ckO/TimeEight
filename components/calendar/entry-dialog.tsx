@@ -3,7 +3,7 @@
 import * as Select from "@radix-ui/react-select";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Check, ChevronDown, X } from "lucide-react";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { ZeroClearingNumberInput } from "@/components/ui/zero-clearing-number-input";
 import type { Task, TimeEntry } from "@/lib/domain/types";
 
@@ -34,21 +34,34 @@ function EntryForm({
   const [hours, setHours] = useState(Math.floor(initialMinutes / 60));
   const [minutes, setMinutes] = useState(initialMinutes % 60);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (submittingRef.current) return;
     const durationSeconds = (hours * 60 + minutes) * 60;
     if (!taskId || durationSeconds < 60 || durationSeconds > 86_400) {
       return setError(
         "Choose a task and a duration between 1 minute and 24 hours.",
       );
     }
-    await onSave({ taskId, localDate, durationSeconds });
+    submittingRef.current = true;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await onSave({ taskId, localDate, durationSeconds });
+    } catch {
+      submittingRef.current = false;
+      setSubmitting(false);
+      setError("Time could not be saved. Please try again.");
+      return;
+    }
     close();
   }
 
   return (
-    <form className="dialog-form" onSubmit={submit}>
+    <form className="dialog-form" onSubmit={submit} aria-busy={submitting}>
       <div className="entry-task-field">
         <span id={taskLabelId}>Task</span>
         <Select.Root value={taskId} onValueChange={setTaskId}>
@@ -131,7 +144,11 @@ function EntryForm({
           {error}
         </p>
       )}
-      <button className="primary-button form-primary">
+      <button
+        type="submit"
+        className="primary-button form-primary"
+        disabled={submitting}
+      >
         {entry ? "Save correction" : "Add time"}
       </button>
     </form>

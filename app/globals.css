@@ -2185,6 +2185,10 @@ h3 {
   width: 100%;
   white-space: nowrap;
 }
+.entry-dialog .form-primary:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
 
 .duration-fields {
   display: grid;
