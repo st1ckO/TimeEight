@@ -1054,12 +1054,23 @@ test("centers the reached-limit confirmation and continues only by choice", asyn
   await expect(extra).toHaveCount(1);
   await expect(extra).not.toContainText("Over limit");
   await expect(extra.locator("strong")).toContainText(/^−/);
+  await expect(extra.locator("time")).toHaveText(/^\d{1,2}:\d{2}(am|pm)$/);
+  await expect(extra.locator("time")).toHaveAttribute(
+    "aria-label",
+    /^Stopped at \d{1,2}:\d{2}(am|pm)$/,
+  );
   await expect(
     page
       .locator(".history-entry")
       .filter({ hasText: "Manual addition" })
       .locator("strong"),
   ).toHaveText("2h 0m");
+  await expect(
+    page
+      .locator(".history-entry")
+      .filter({ hasText: "Manual addition" })
+      .locator("time"),
+  ).toHaveCount(0);
   await extra.screenshot({
     path: testInfo.outputPath("negative-limit-history.png"),
   });
