@@ -2040,6 +2040,10 @@ h3 {
 .history-entry-target {
   white-space: nowrap;
 }
+.history-entry-time {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .history-entry .history-entry-menu-trigger {
   width: 44px;
   height: 44px;

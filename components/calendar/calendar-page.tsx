@@ -52,6 +52,48 @@ function monthCells(monthKey: string) {
   });
 }
 
+function formatTimelineTime(timestamp: string, timezone: string) {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: timezone,
+  })
+    .format(date)
+    .replace(/\s+/g, "")
+    .toLowerCase();
+}
+
+function TimelineEntryTime({
+  entry,
+  timezone,
+}: {
+  entry: TimeEntry;
+  timezone: string;
+}) {
+  if (!entry.endedAt) return null;
+  const endedTime = formatTimelineTime(entry.endedAt, timezone);
+  if (!endedTime) return null;
+
+  const description =
+    entry.source === "recovered"
+      ? `Last confirmed checkpoint at ${endedTime}`
+      : `Stopped at ${endedTime}`;
+  return (
+    <time
+      className="history-entry-time"
+      dateTime={entry.endedAt}
+      aria-label={description}
+      title={description}
+    >
+      {endedTime}
+    </time>
+  );
+}
+
 export function CalendarPage() {
   const app = useTimeEight();
   const [chosenMonth, setMonth] = useState<string | null>(null);
@@ -356,6 +398,10 @@ export function CalendarPage() {
                           ? " · corrected"
                           : ""}
                       </span>
+                      <TimelineEntryTime
+                        entry={entry}
+                        timezone={app.profile.timezone}
+                      />
                       {tasksById.get(entry.taskId) && (
                         <span className="history-entry-target">
                           Allotment:{" "}

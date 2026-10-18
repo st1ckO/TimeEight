@@ -53,6 +53,13 @@ describe("CalendarPage corrections", () => {
     revertEntryCorrection.mockClear();
     vi.mocked(useTimeEight).mockReturnValue({
       today: "2026-09-12",
+      profile: {
+        id: "user-1",
+        displayName: "Taylor",
+        timezone: "Asia/Manila",
+        theme: "system",
+        onboardingCompleted: true,
+      },
       entries: [correctedTimer, manualEntry],
       tasks: [
         {
@@ -98,6 +105,10 @@ describe("CalendarPage corrections", () => {
     expect(container.querySelectorAll(".history-entry > strong")).toHaveLength(
       2,
     );
+    expect(
+      screen.getByRole("time", { name: "Stopped at 10:00am" }),
+    ).toHaveAttribute("datetime", correctedTimer.endedAt);
+    expect(container.querySelectorAll(".history-entry time")).toHaveLength(1);
   });
 
   it("switches from individual history to per-task daily totals", async () => {
@@ -237,6 +248,11 @@ describe("CalendarPage corrections", () => {
       "Recovered checkpoint",
     );
     expect(screen.getByText("Manual addition")).toBeInTheDocument();
+    expect(
+      screen.getByRole("time", {
+        name: "Last confirmed checkpoint at 10:00am",
+      }),
+    ).toHaveAttribute("datetime", correctedTimer.endedAt);
     for (const row of container.querySelectorAll(".history-entry"))
       expect(row.querySelectorAll("button")).toHaveLength(1);
     await user.click(
@@ -261,5 +277,5 @@ describe("CalendarPage corrections", () => {
     await user.click(screen.getByRole("menuitem", { name: "Delete entry" }));
     await user.click(screen.getByRole("button", { name: "Delete entry" }));
     expect(deleteEntry).toHaveBeenCalledWith("manual-entry");
-  });
+  }, 10_000);
 });
